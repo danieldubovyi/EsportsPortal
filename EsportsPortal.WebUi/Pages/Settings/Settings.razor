@@ -1,0 +1,77 @@
+﻿@page "/settings"
+
+@inject IUserThemeService userThemeService
+@inject IToastService toastService
+
+<PageTitle>Home</PageTitle>
+
+<FluentDesignTheme
+    @bind-Mode="@mode"
+    OfficeColor="@color"
+    OfficeColorChanged="@(e => { color = e ?? OfficeColor.Default; StateHasChanged(); })"
+    StorageName="theme" />
+
+<FluentCard Style="margin: 16px 0px; padding: 16px; width: 500px; height: 400px;">
+    <FluentLabel Style="margin-bottom:20px" Typo="Typography.PageTitle">Settings</FluentLabel>
+
+    <p>
+    <FluentSelect
+        Label="Color"
+        Style="min-width:200px"
+        Items=@(Enum.GetValues<OfficeColor>())
+        Height="200px"
+        @bind-SelectedOption="@color"
+    />
+    </p>
+    <p>
+    <FluentSwitch
+        Label="Theme"
+        UncheckedMessage="Light"
+        CheckedMessage="Dark"
+        @bind-Value="@IsDark"
+    />
+    </p>
+    <AuthorizeView>
+        <p style="padding-top: 20px; text-align:left;">
+        <FluentButton
+            Style="width:100px"
+            Appearance="Appearance.Accent"
+            IconStart="@(new Icons.Regular.Size20.Save())"
+            Loading="@saving"
+            OnClick="SaveAsync">
+            Save
+        </FluentButton>
+        </p>
+    </AuthorizeView>
+</FluentCard>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; } = default!;
+
+    private OfficeColor color = OfficeColor.Default;
+    private DesignThemeModes mode = DesignThemeModes.Light;
+    private bool saving = false;
+
+    public bool IsDark
+    {
+        get => mode == DesignThemeModes.Dark;
+        set => mode = value ? DesignThemeModes.Dark : DesignThemeModes.Light;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await userThemeService.SaveThemeSettingsAsync(color, mode);
+        if (response.IsSuccessful)
+        {
+            toastService.ShowSuccess("Settings was saved successfully");
+        }
+        else
+        {
+            toastService.ShowErrors(response.Errors);
+        }
+
+        saving = false;
+    }
+}

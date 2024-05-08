@@ -1,0 +1,32 @@
+﻿.tournament-period {
+    width: 180px;
+    float: left;
+    line-height: 2rem;
+    color: var(--neutral-stroke-strong-rest);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-1-font-size);
+    padding-top: 3px;
+}
+
+.tournament-logo {
+    width: 50px;
+    float: left;
+    text-align: center;
+    padding-top: 3px;
+    padding-left: 10px;
+}
+
+.tournament-logo-image {
+    height: 2rem;
+    margin: auto;
+}
+
+.tournament-name {
+    float: left;
+    line-height: 2rem;
+    color: var(--accent-fill-rest);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    padding-top: 3px;
+    padding-left: 10px;
+}

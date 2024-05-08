@@ -1,0 +1,180 @@
+﻿@page "/news/{postId:int}"
+@inject NewsClient newsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject NavigationManager navManager
+@inject IDialogService dialogService
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<PageTitle>News</PageTitle>
+@if (post == null || tags == null)
+{
+    <Loading />
+}
+else
+{
+<FluentCard Style="background-color: var(--neutral-layer-card-container);">
+    <AuthorizeView Roles="@UserRole.Admin">
+        <div class="news-actions">
+            <FluentButton Id="menuButton" Appearance="Appearance.Outline" OnClick="@(() => menuOpen = !menuOpen)">
+                <FluentIcon Value="@(new Icons.Regular.Size24.Navigation())" />
+            </FluentButton>
+            <FluentMenu Anchor="menuButton" @bind-Open="menuOpen">
+                <FluentMenuItem OnClick="Edit">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Slot="start" />
+                    Edit
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="UploadImage">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.ImageEdit())" Slot="start" />
+                    Upload image
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="ManageTags">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Tag())" Slot="start" />
+                    Manage tags
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="Delete">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" />
+                    Delete
+                </FluentMenuItem>
+            </FluentMenu>
+        </div>
+        </AuthorizeView>
+        <FluentStack Orientation="Orientation.Vertical">
+            <div>
+                @if (post.ImageFileName != null)
+                {
+                    <img class="news-image" src="@fileUrlProvider.GetFileUrl(post.ImageFileName)" alt="Logo of @post.Title" />
+                }
+                <AuthorizeView Roles="@UserRole.Admin">
+                    <FluentInputFile @ref="logoUploadComponent"
+                        DragDropZoneVisible="false"
+                        Mode="InputFileMode.Stream"
+                        Multiple="false"
+                        AnchorId="uploadLogoMenu"
+                        MaximumFileSize="@(10 * 1024 * 1024)"
+                        Accept="image/*"
+                        OnFileUploaded="@OnImageUploadCompleted" />
+                </AuthorizeView>
+                <p class="news-title">@post.Title</p>
+                <p class="news-field">
+                    <div class="news-field-label">Publish date</div>
+                    <div class="news-field-value">@($"{post.PublishDate:MMM dd, yyyy}")</div>
+                </p>
+                <p class="news-field">
+                    <div class="news-field-label">Tags</div>
+                    <div class="news-field-value">
+                        @foreach(var tag in tags)
+                        {
+                            <FluentBadge Appearance="Appearance.Accent" Style="margin-right:5px;">@tag</FluentBadge>
+                        }
+                    </div>
+                </p>
+            </div>
+            <p class="news-text">@post.Body</p>
+        </FluentStack>
+
+</FluentCard>
+}
+@code {
+
+    [Parameter]
+    public int PostId { get; set; }
+
+    private NewsPostDetails? post;
+    private IReadOnlyCollection<string>? tags;
+    private bool menuOpen;
+    private FluentInputFile logoUploadComponent = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var postTask = newsClient.GetNewsPostDetailsAsync(PostId);
+        var tagsTask = newsClient.GetNewsPostTagsAsync(PostId);
+
+        await Task.WhenAll(postTask, tagsTask);
+
+        post = postTask.Result;
+        tags = tagsTask.Result;
+    }
+
+    private async Task Edit()
+    {
+        if (post == null)
+        {
+            return;
+        }
+        var parameters = new DialogParameters { Title = "News info", PrimaryAction = "Save", PreventDismissOnOverlayClick = true };
+        var postDetailsModel = new NewsPostDetailsModel
+        {
+            Id = post.Id,
+            Title = post.Title,
+            PublishDate = post.PublishDate.DateTime,
+            Body = post.Body
+        };
+        var dialog = await dialogService.ShowDialogAsync<NewsPostDetailsDialog>(postDetailsModel, parameters);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            post = await newsClient.GetNewsPostDetailsAsync(PostId);
+            toastService.ShowSuccess("News was saved successfully");
+        }
+    }
+
+    private async Task UploadImage()
+    {
+        await logoUploadComponent.ShowFilesDialogAsync();
+    }
+
+    private async Task OnImageUploadCompleted(FluentInputFileEventArgs file)
+    {
+        var response = await dataSource.RunAction(async () =>
+        {
+            var fileParameter = new FileParameter(file.Stream!, file.Name, file.ContentType);
+            await newsClient.UpdateNewsPostImageAsync(PostId, fileParameter);
+        });
+        if (response.IsSuccessful)
+        {
+            post = await newsClient.GetNewsPostDetailsAsync(PostId);
+            toastService.ShowSuccess("News image was updated successfully");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task Delete()
+    {
+        var dialog = await dialogService.ShowConfirmationAsync("You want to delete news. Are you sure?");
+        var result = await dialog.Result;
+        if(result.Cancelled)
+        {
+            return;
+        }
+        var response = await dataSource.RunAction(async () =>
+        {
+            await newsClient.DeleteNewsPostAsync(PostId);
+        });
+        if (response.IsSuccessful)
+        {
+            await (await dialogService.ShowSuccessAsync("News was deleted successfully")).Result;
+            navManager.NavigateTo($"/news");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task ManageTags()
+    {
+        if (post == null)
+        {
+            return;
+        }
+        var dialog = await dialogService.ShowDialogAsync<NewsPostTagsDialog>(post.Id, new() { Height = "400px", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            tags = await newsClient.GetNewsPostTagsAsync(PostId);
+            toastService.ShowSuccess("News tags was saved successfully");
+        }
+    }
+}

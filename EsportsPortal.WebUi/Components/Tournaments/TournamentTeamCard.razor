@@ -1,0 +1,22 @@
+﻿@inject IFileUrlProvider fileUrlProvider
+
+<FluentAnchor Href="@($"teams/{Team.Id}")" Appearance="Appearance.Hypertext" Style="width:100%">
+    <FluentCard Style="padding: 5px 10px">
+        <div class="team-place">@(Team.Place != null ? $"#{Team.Place}" : "-")</div>
+        <div class="team-logo"><img class="team-logo-image" src="@fileUrlProvider.GetFileUrl(Team.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(Team.Name)" /></div>
+        <div class="team-name">@(Team.Name)</div>
+        @if (Team.Prize.HasValue)
+        {
+            <div class="team-prize">Prize: <span>@(Team.Prize.Value.ToString("C0"))</span></div>
+        }
+        <NameWithIcon
+            Name="@Team.RegionName"
+            ImageUrl="@fileUrlProvider.GetFileUrl(Team.RegionFlagFileName)"
+            HorizontalPosition="HorizontalPosition.Right" />
+    </FluentCard>
+</FluentAnchor>
+
+@code {
+    [Parameter]
+    public TournamentTeamItem Team { get; set; } = default!;
+}

@@ -1,0 +1,27 @@
+﻿@inject IFileUrlProvider fileUrlProvider
+
+<FluentCard Style="@($"padding: 5px 10px 0px 130px; background-image: url('{fileUrlProvider.GetFileUrl(Map.ImageFileName)}');background-size: contain;background-repeat: no-repeat;")">
+    <div class="map-team">
+        @if (Map.Team1.Points.HasValue)
+        {
+            <div class="map-team-points map-team1 @(Map.Team1.IsWinner == true ? "map-team-win" : "map-team-loose")">@(Map.Team1.Points)</div>
+        }
+        <div class="map-team-logo map-team1"><img class="map-team-logo-image" src="@fileUrlProvider.GetFileUrl(Map.Team1.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(Map.Team1.Name)" /></div>
+        <div class="map-team-name map-team1">@(Map.Team1.Name)</div>
+    </div>
+    <div class="map-team-splitter">-</div>
+    <div class="map-team">
+        @if (Map.Team2.Points.HasValue)
+        {
+            <div class="map-team-points map-team2 @(Map.Team2.IsWinner == true ? "map-team-win" : "map-team-loose")">@(Map.Team2.Points)</div>
+        }
+        <div class="map-team-logo map-team2"><img class="map-team-logo-image" src="@fileUrlProvider.GetFileUrl(Map.Team2.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(Map.Team2.Name)" /></div>
+        <div class="map-team-name map-team2">@(Map.Team2.Name)</div>
+    </div>
+    <div class="map-name">@Map.Name</div>
+</FluentCard>
+
+@code {
+    [Parameter]
+    public MatchMapItem Map { get; set; } = default!;
+}

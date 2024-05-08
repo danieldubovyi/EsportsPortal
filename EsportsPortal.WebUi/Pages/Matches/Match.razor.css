@@ -1,0 +1,107 @@
+﻿.match-info {
+    padding: 20px;
+    height: 250px;
+}
+
+.match-field-label {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding: 5px;
+    text-align: right;
+    width: 150px;
+    display: inline-block;
+}
+
+.match-field-value {
+    font-size: var(--type-ramp-plus-2-font-size);
+    color: var(--accent-fill-rest);
+    padding-left: 5px;
+    display: inline-block;
+    font-weight: bold;
+}
+
+.match-actions {
+    margin-top: -30px;
+    margin-right: -25px;
+    float: right;
+}
+
+.caption {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding: 20px;
+}
+
+.match-teams {
+    padding-left: 40px;
+    padding-bottom: 60px;
+}
+
+.match-team-logo {
+    width: 85px;
+    text-align: center;
+    padding-top: 3px;
+}
+
+.match-team-logo-image {
+    height: 2rem;
+    margin: auto;
+}
+
+.match-team-name {
+}
+
+.match-team {
+    float: left;
+    line-height: 2rem;
+    color: var(--accent-fill-rest);
+    font-weight: bold;
+    font-size: 36px;
+    padding-top: 3px;
+    width: 350px
+}
+
+.match-team1 {
+    float: right;
+}
+
+.match-team2 {
+    float: left;
+}
+
+.match-team-points {
+    font-size: var(--type-ramp-plus-3-font-size);
+}
+
+.match-team-splitter {
+    float: left;
+    line-height: 2rem;
+    color: var(--accent-fill-rest);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    padding: 3px 10px;
+}
+
+.match-match-format {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-1-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding: 5px;
+    float: right;
+}
+
+.match-team-win {
+    color: var(--presence-available);
+}
+
+.match-team-loose {
+    color: var(--presence-dnd);
+}

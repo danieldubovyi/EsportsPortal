@@ -1,0 +1,48 @@
+﻿.coach-info {
+    padding-top: 40px;
+    height: 300px;
+}
+
+.coach-photo {
+    float: left;
+    text-align: center;
+}
+
+.coach-photo-image {
+    height: 300px;
+    margin: auto;
+}
+
+.coach-name {
+    font-family: var(--body-font);
+    font-size: 48px;
+    line-height: 76px;
+    color: var(--accent-fill-rest);
+    padding-bottom: 15px;
+}
+
+.coach-field-label {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding: 5px;
+    text-align: right;
+    width: 150px;
+    display: inline-block;
+}
+
+.coach-field-value {
+    font-size: var(--type-ramp-plus-2-font-size);
+    color: var(--accent-fill-rest);
+    padding-left: 5px;
+    display: inline-block;
+    font-weight: bold;
+}
+
+.coach-actions {
+    margin-top: -30px;
+    margin-right: 15px;
+    float: right;
+}

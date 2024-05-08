@@ -1,0 +1,31 @@
+﻿.container {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-1-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding: 5px;
+    float: left;
+}
+
+.name-left {
+    float: left;
+    padding-right: 10px;
+    margin-top: -3px;
+}
+
+.name-right {
+    float: right;
+    padding-left: 10px;
+    margin-top: -3px;
+}
+
+.icon {
+    float: left;
+    text-align: center;
+}
+
+.icon-image {
+    height: 16px;
+    margin: auto;
+}

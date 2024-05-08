@@ -1,0 +1,63 @@
+﻿@page "/"
+
+@inject NewsClient newsClient
+@inject MatchesClient matchesClient
+@inject IDialogService dialogService
+@inject NavigationManager navManager
+
+<PageTitle>Home</PageTitle>
+
+@if (newsPosts == null || finishedMatches == null || upcomingMatches == null)
+{
+    <Loading />
+}
+else
+{
+    <div style="width: 100%">
+        <FluentLabel Style="float:left" Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">Esports portal</FluentLabel>
+    </div>
+    <FluentStack Orientation="Orientation.Vertical">
+        <div class="caption">Last news</div>
+        @foreach (var chank in newsPosts.Chunk(2))
+        {
+            <FluentStack>
+            @foreach(var newsPost in chank)
+            {
+                <NewsPostCard Post="newsPost" />
+            }
+            </FluentStack>
+        }
+        <PageAnchor Href="news" Label="More news" />
+        <div class="caption">Last results</div>
+        @foreach(var match in finishedMatches)
+        {
+            <MatchCard Match="match" />
+        }
+        <PageAnchor Href="results" Label="Go to results" />
+        <div class="caption">Upcoming matches</div>
+        @foreach (var match in upcomingMatches)
+        {
+            <MatchCard Match="match" />
+        }
+        <PageAnchor Href="schedule" Label="Go to schedule" />
+    </FluentStack>
+}
+
+@code {
+    private IReadOnlyCollection<NewsPostItem>? newsPosts;
+    private IReadOnlyCollection<MatchListItem>? finishedMatches;
+    private IReadOnlyCollection<MatchListItem>? upcomingMatches;
+
+    protected async override Task OnInitializedAsync()
+    {
+        var newsPostsTask = newsClient.GetNewsPostsAsync(10);
+        var finishedMatchesTask = matchesClient.GetMatchesAsync(isFinished: true);
+        var upcomingMatchesTask = matchesClient.GetMatchesAsync(isFinished: false);
+
+        await Task.WhenAll(newsPostsTask, finishedMatchesTask, upcomingMatchesTask);
+
+        newsPosts = newsPostsTask.Result;
+        finishedMatches = finishedMatchesTask.Result.OrderByDescending(m => m.DateTime).Take(5).ToArray();
+        upcomingMatches = upcomingMatchesTask.Result.OrderBy(m => m.DateTime).Take(5).ToArray();
+    }
+}

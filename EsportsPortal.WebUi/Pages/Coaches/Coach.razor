@@ -1,0 +1,166 @@
+﻿@page "/coaches/{coachId:int}"
+
+@inject CoachesClient coachesClient
+@inject IFileUrlProvider fileUrlProvider
+@inject NavigationManager navManager
+@inject IDialogService dialogService
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<PageTitle>@coach?.Nickname</PageTitle>
+@if (coach == null)
+{
+    <Loading />
+}
+else
+{
+    <FluentCard Style="background-color: var(--neutral-layer-card-container);">
+        <div class="coach-info">
+            <AuthorizeView Roles="@UserRole.Admin">
+                <div class="coach-actions">
+                    <FluentButton Id="menuButton" Appearance="Appearance.Outline" OnClick="@(() => menuOpen = !menuOpen)">
+                        <FluentIcon Value="@(new Icons.Regular.Size24.Navigation())" />
+                    </FluentButton>
+                    <FluentMenu Anchor="menuButton" @bind-Open="menuOpen">
+                        <FluentMenuItem OnClick="Edit">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Slot="start" />
+                            Edit
+                        </FluentMenuItem>
+                        <FluentMenuItem OnClick="UploadPhoto">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.ImageEdit())" Slot="start" />
+                            Upload photo
+                        </FluentMenuItem>
+                        <FluentMenuItem OnClick="Delete">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" />
+                            Delete
+                        </FluentMenuItem>
+                    </FluentMenu>
+                </div>
+            </AuthorizeView>
+            <div class="coach-photo">
+                <img class="coach-photo-image" src="@fileUrlProvider.GetFileUrl(coach.PhotoFileName ?? DefaultImages.NoPhoto)" alt="Logo of @coach.Nickname" />
+                <AuthorizeView Roles="@UserRole.Admin">
+                    <FluentInputFile @ref="photoUploadComponent"
+                                     DragDropZoneVisible="false"
+                                     Mode="InputFileMode.Stream"
+                                     Multiple="false"
+                                     MaximumFileSize="@(10 * 1024 * 1024)"
+                                     Accept="image/*"
+                                     OnFileUploaded="@OnPhotoUploadCompleted" />
+                </AuthorizeView>
+            </div>
+            <div style="float:left">
+                <div class="coach-name">@coach.FirstName '<span style="font-weight:bold">@coach.Nickname</span>' @coach.LastName</div>
+                <div class="coach-field">
+                    <div class="coach-field-label">Current team</div>
+                    <div class="coach-field-value">
+                        <TeamAnchor 
+                            Id="@coach.TeamId"
+                            Name ="@(coach.TeamName ?? "No team")"
+                            ImageUrl="@(fileUrlProvider.GetFileUrl(coach.TeamLogoFileName ?? DefaultImages.NoLogo))"
+                        />
+                    </div>
+                </div>
+                <div class="coach-field">
+                    <div class="coach-field-label">Born</div>
+                    <div class="coach-field-value">@(coach.DateOfBirth.ToStringWithAge())</div>
+                </div>
+                <div class="coach-field">
+                    <div class="coach-field-label">Nationality</div>
+                    <div class="coach-field-value">
+                        <LabelWithIcon
+                            Label="@coach.CountryName"
+                            ImageUrl="@fileUrlProvider.GetFileUrl(coach.CountryFlagFileName)"
+                            Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;"
+                            ImageSize="20px"
+                        />
+                    </div>
+                </div>
+            </div>
+        </div>
+    </FluentCard>
+}
+@code {
+
+    [Parameter]
+    public int CoachId { get; set; }
+
+    private CoachDetails? coach;
+    private bool menuOpen;
+    private FluentInputFile photoUploadComponent = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        coach = await coachesClient.GetCoachDetailsAsync(CoachId);
+    }
+
+    private async Task Edit()
+    {
+        if (coach == null)
+        {
+            return;
+        }
+        var parameters = new DialogParameters { Title = "Coach info", PrimaryAction = "Save", PreventDismissOnOverlayClick = true };
+        var coachDetailsModel = new CoachDetailsModel
+            {
+                Id = coach.Id,
+                FirstName = coach.FirstName,
+                LastName = coach.LastName,
+                Nickname = coach.Nickname,
+                CountryId = coach.CountryId,
+                DateOfBirth = coach.DateOfBirth.Date,
+                TeamId = coach.TeamId
+            };
+        var dialog = await dialogService.ShowDialogAsync<CoachDetailsDialog>(coachDetailsModel, parameters);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            coach = await coachesClient.GetCoachDetailsAsync(CoachId);
+            toastService.ShowSuccess("Coach was saved successfully");
+        }
+    }
+
+    private async Task UploadPhoto()
+    {
+        await photoUploadComponent.ShowFilesDialogAsync();
+    }
+
+    private async Task OnPhotoUploadCompleted(FluentInputFileEventArgs file)
+    {
+        var response = await dataSource.RunAction(async () =>
+        {
+            var fileParameter = new FileParameter(file.Stream!, file.Name, file.ContentType);
+            await coachesClient.UpdateCoachPhotoAsync(CoachId, fileParameter);
+        });
+        if (response.IsSuccessful)
+        {
+            coach = await coachesClient.GetCoachDetailsAsync(CoachId);
+            toastService.ShowSuccess("Coach photo was updated successfully");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task Delete()
+    {
+        var dialog = await dialogService.ShowConfirmationAsync($"You want to delete '{coach?.Nickname}' coach. Are you sure?");
+        var result = await dialog.Result;
+        if (result.Cancelled)
+        {
+            return;
+        }
+        var response = await dataSource.RunAction(async () =>
+        {
+            await coachesClient.DeleteCoachAsync(CoachId);
+        });
+        if (response.IsSuccessful)
+        {
+            await (await dialogService.ShowSuccessAsync($"'{coach?.Nickname}' coach was deleted successfully")).Result;
+            navManager.NavigateTo($"/coaches");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+}

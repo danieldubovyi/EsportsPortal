@@ -1,0 +1,215 @@
+﻿@page "/matches/{matchId:int}"
+@inject MatchesClient matchesClient
+@inject IFileUrlProvider fileUrlProvider
+@inject NavigationManager navManager
+@inject IDialogService dialogService
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<PageTitle>Match</PageTitle>
+@if (match == null || maps == null)
+{
+    <Loading />
+}
+else
+{
+<FluentCard Style="background-color: var(--neutral-layer-card-container);">
+    <div class="match-info">
+        <AuthorizeView Roles="@UserRole.Admin">
+        <div class="match-actions">
+            <FluentButton Id="menuButton" Appearance="Appearance.Outline" OnClick="@(() => menuOpen = !menuOpen)">
+                <FluentIcon Value="@(new Icons.Regular.Size24.Navigation())" />
+            </FluentButton>
+            <FluentMenu Anchor="menuButton" @bind-Open="menuOpen">
+                <FluentMenuItem OnClick="Edit">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Slot="start" />
+                    Edit
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="ManageMaps">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Map())" Slot="start" />
+                    Manage maps
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="ManageResults">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Poll())" Slot="start" />
+                    Manage results
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="Delete">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" />
+                    Delete
+                </FluentMenuItem>
+            </FluentMenu>
+        </div>
+        </AuthorizeView>
+        <div style="float:left">
+            <div class="match-teams">
+                <div class="match-team">
+                    @if (match.Team1.Points.HasValue)
+                    {
+                        <div class="match-team-points match-team1 @(match.Team1.IsWinner == true ? "match-team-win" : "match-team-loose")">@(match.Team1.Points)</div>
+                    }
+                    <div class="match-team-logo match-team1"><img class="match-team-logo-image" src="@fileUrlProvider.GetFileUrl(match.Team1.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(match.Team1.Name)" /></div>
+                    <div class="match-team-name match-team1">@(match.Team1.Name)</div>
+                </div>
+                <div class="match-team-splitter">-</div>
+                <div class="match-team">
+                    @if (match.Team2.Points.HasValue)
+                    {
+                        <div class="match-team-points match-team2 @(match.Team2.IsWinner == true ? "match-team-win" : "match-team-loose")">@(match.Team2.Points)</div>
+                    }
+                    <div class="match-team-logo match-team2"><img class="match-team-logo-image" src="@fileUrlProvider.GetFileUrl(match.Team2.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(match.Team2.Name)" /></div>
+                    <div class="match-team-name match-team2">@(match.Team2.Name)</div>
+                </div>
+            </div>
+            <div class="match-field">
+                <div class="match-field-label">Tournament</div>
+                <div class="match-field-value">
+                    <FluentAnchor Href="@($"tournaments/{match.TournamentId}")" Appearance="Appearance.Hypertext">
+                    <LabelWithIcon
+                        Label="@match.TournamentName"
+                        ImageUrl="@fileUrlProvider.GetFileUrl(match.TournamentLogoFileName ?? DefaultImages.NoLogo)"
+                        Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;"
+                        IconPosition = "HorizontalPosition.Left"
+                        ImageSize="28px"
+                    />
+                    </FluentAnchor>
+                </div>
+            </div>
+            <div class="match-field">
+                <div class="match-field-label">Date</div>
+                <div class="match-field-value">@($"{match.DateTime:MMM dd, yyyy}")</div>
+            </div>
+            <div class="match-field">
+                <div class="match-field-label">Time</div>
+                <div class="match-field-value">@($"{match.DateTime:HH:mm}")</div>
+            </div>
+            <div class="match-field">
+                <div class="match-field-label">Location</div>
+                <div class="match-field-value">
+                    <LabelWithIcon
+                        Label="@($"{match.City}, {match.CountryName}")"
+                        ImageUrl="@fileUrlProvider.GetFileUrl(match.CountryFlagFileName)"
+                        Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;"
+                        ImageSize="20px"
+                    />
+                </div>
+            </div>
+            <div class="match-field">
+                <div class="match-field-label">Format</div>
+                <div class="match-field-value">@match.MatchFormat</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="caption">Maps</div>
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach(var map in maps)
+        {
+            <MatchMapCard Map="map" />
+        }
+    </FluentStack>
+
+</FluentCard>
+}
+@code {
+
+    [Parameter]
+    public int MatchId { get; set; }
+
+    private MatchDetails? match;
+    private IReadOnlyCollection<MatchMapItem>? maps;
+    private bool menuOpen;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var matchTask = matchesClient.GetMatchDetailsAsync(MatchId);
+        var mapsTask = matchesClient.GetMatchMapsAsync(MatchId);
+
+        await Task.WhenAll(matchTask, mapsTask);
+
+        match = matchTask.Result;
+        maps = mapsTask.Result;
+    }
+
+    private async Task Edit()
+    {
+        if (match == null)
+        {
+            return;
+        }
+        var parameters = new DialogParameters { Title = "Match info", PrimaryAction = "Save", PreventDismissOnOverlayClick = true };
+        var matchDetailsModel = new MatchDetailsModel(match.TournamentId)
+        {
+            Id = match.Id,
+            DateTime = match.DateTime.DateTime,
+            Team1Id = match.Team1.Id,
+            Team2Id = match.Team2.Id,
+            MatchFormat = match.MatchFormat
+        };
+        var dialog = await dialogService.ShowDialogAsync<MatchDetailsDialog>(matchDetailsModel, parameters);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            match = await matchesClient.GetMatchDetailsAsync(MatchId);
+            toastService.ShowSuccess("Match was saved successfully");
+        }
+    }
+
+    private async Task Delete()
+    {
+        var dialog = await dialogService.ShowConfirmationAsync("You want to delete match. Are you sure?");
+        var result = await dialog.Result;
+        if(result.Cancelled)
+        {
+            return;
+        }
+        var response = await dataSource.RunAction(async () =>
+        {
+            await matchesClient.DeleteMatchAsync(MatchId);
+        });
+        if (response.IsSuccessful)
+        {
+            await (await dialogService.ShowSuccessAsync("Match was deleted successfully")).Result;
+            navManager.NavigateTo($"/tournaments/{match!.TournamentId}");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task ManageMaps()
+    {
+        if (match == null)
+        {
+            return;
+        }
+        var dialog = await dialogService.ShowDialogAsync<MatchMapsDialog>(match.Id, new() { Height = "400px", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            maps = await matchesClient.GetMatchMapsAsync(MatchId);
+            match = await matchesClient.GetMatchDetailsAsync(MatchId);
+            toastService.ShowSuccess("Match maps was saved successfully");
+        }
+    }
+
+    private async Task ManageResults()
+    {
+        if (match == null)
+        {
+            return;
+        }
+        if(maps == null || maps.Count < 1)
+        {
+            toastService.ShowWarning("Please add maps first");
+            return;
+        }
+        var dialog = await dialogService.ShowDialogAsync<MatchResultDialog>(match.Id, new() { Height = "400px", Width = "450px", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            maps = await matchesClient.GetMatchMapsAsync(MatchId);
+            match = await matchesClient.GetMatchDetailsAsync(MatchId);
+            toastService.ShowSuccess("Tournament teams was saved successfully");
+        }
+    }
+}

@@ -1,0 +1,68 @@
+﻿@page "/players"
+
+@inject PlayersClient playersClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IDialogService dialogService
+@inject NavigationManager navManager
+
+<PageTitle>Players</PageTitle>
+
+@if (players == null)
+{
+    <Loading />
+}
+else
+{
+    <div style="width: 100%">
+    <FluentLabel Style="float:left" Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">Players</FluentLabel>
+    <AuthorizeView Roles="@UserRole.Admin">
+        <FluentButton Style="float:right; margin-top: 9px;"
+            Appearance="Appearance.Outline"
+            IconStart="@(new Icons.Regular.Size24.PersonAdd())"
+            OnClick=CreatePlayer>
+            <span style="font-weight:bold;color:var(--accent-fill-rest)">New player</span>
+        </FluentButton>
+    </AuthorizeView>
+    </div>
+
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach (var player in players.OrderBy(p => p.Rating.HasValue ? p.Rating.Value : int.MaxValue).ThenBy(p => p.Nickname))
+        {
+            <FluentAnchor Href="@($"players/{player.Id}")" Appearance="Appearance.Hypertext" Style="width:100%">
+                <FluentCard Style="padding: 10px">
+                    <div class="player-rating">#@(player.Rating?.ToString() ?? "?")</div>
+                    <div class="player-photo">
+                        <img class="player-photo-image" src="@fileUrlProvider.GetFileUrl(player.PhotoFileName ?? DefaultImages.NoPhoto)" alt="Photo of @(player.Nickname)" />
+                    </div>
+                    <div class="player-name">@player.FirstName '<span style="font-weight:bold">@player.Nickname</span>' @player.LastName</div>
+                    <NameWithIcon
+                        Name="@(player.TeamName ?? "No team")"
+                        ImageUrl="@fileUrlProvider.GetFileUrl(player.TeamLogoFileName ?? DefaultImages.NoLogo)"
+                        HorizontalPosition="HorizontalPosition.Right"
+                        ImageStyle="height:20px"
+                        style="float:right"
+                    />
+                </FluentCard>
+            </FluentAnchor>
+        }
+    </FluentStack>
+}
+
+@code {
+    private IReadOnlyCollection<PlayerListItem>? players;
+
+    protected override async Task OnInitializedAsync()
+    {
+        players = await playersClient.GetPlayersAsync(notInTeam: null);
+    }
+
+    private async Task CreatePlayer()
+    {
+        var dialog = await dialogService.ShowDialogAsync<PlayerDetailsDialog>(new PlayerDetailsModel(), new DialogParameters { Title = "New player", PrimaryAction = "Create", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            navManager.NavigateTo($"players/{result.Data}");
+        }
+    }
+}

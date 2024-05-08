@@ -1,0 +1,20 @@
+﻿.news-date {
+    float: right;
+    font-family: var(--body-font);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-1-font-size);
+}
+
+.news-title {
+    float: left;
+    width: 300px;
+    height:100px;
+    line-height: var(--type-ramp-plus-9-line-height);
+    color: var(--accent-fill-rest);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    white-space: pre-wrap;
+    word-wrap: break-word;
+}

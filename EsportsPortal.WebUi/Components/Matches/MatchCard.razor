@@ -1,0 +1,30 @@
+﻿@inject IFileUrlProvider fileUrlProvider
+
+<FluentAnchor Href="@($"matches/{Match.Id}")" Appearance="Appearance.Hypertext" Style="width:100%">
+    <FluentCard Style="padding: 5px 10px 0px 10px">
+        <div class="match-datetime">@($"{Match.DateTime:MMM dd, yyyy}")</div>
+        <div class="match-team">
+            @if (Match.Team1.Points.HasValue)
+            {
+                <div class="match-team-points match-team1 @(Match.Team1.IsWinner == true ? "match-team-win" : "match-team-loose")">@(Match.Team1.Points)</div>
+            }
+            <div class="match-team-logo match-team1"><img class="match-team-logo-image" src="@fileUrlProvider.GetFileUrl(Match.Team1.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(Match.Team1.Name)" /></div>
+            <div class="match-team-name match-team1">@(Match.Team1.Name)</div>
+        </div>
+        <div class="match-team-splitter">-</div>
+        <div class="match-team">
+            @if (Match.Team2.Points.HasValue)
+            {
+                <div class="match-team-points match-team2 @(Match.Team2.IsWinner == true ? "match-team-win" : "match-team-loose")">@(Match.Team2.Points)</div>
+            }
+            <div class="match-team-logo match-team2"><img class="match-team-logo-image" src="@fileUrlProvider.GetFileUrl(Match.Team2.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(Match.Team2.Name)" /></div>
+            <div class="match-team-name match-team2">@(Match.Team2.Name)</div>
+        </div>
+        <div class="match-match-format">@(Match.MatchFormat)</div>
+    </FluentCard>
+</FluentAnchor>
+
+@code {
+    [Parameter]
+    public MatchListItem Match { get; set; } = default!;
+}

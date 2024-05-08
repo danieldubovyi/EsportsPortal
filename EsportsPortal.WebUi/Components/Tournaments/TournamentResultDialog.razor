@@ -1,0 +1,102 @@
+﻿@implements IDialogContentComponent<int>
+@inject TournamentsClient tournamentsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<FluentDialogHeader ShowDismiss="false">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Poll())" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            Tournament results
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="0">
+        <div class="edit-result">
+            <div class="edit-result-place edit-result-header">Place</div>
+            <div class="edit-result-team-name edit-result-header" style="width:345px">Team</div>
+            <div class="edit-result-prize edit-result-header">Prize</div>
+        </div>
+    </FluentStack>
+    <div style="height:208px;overflow:auto;">
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="0">
+    @foreach(var team in teams)
+    {
+        <div class="edit-result">
+            <div class="edit-result-place">
+                <FluentNumberField @bind-Value="@team.Place" Min="1" Style="margin-bottom:0" />
+            </div>
+            <div class="edit-result-team-logo"><img class="edit-result-team-logo-image" src="@fileUrlProvider.GetFileUrl(team.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(team.Name)" /></div>
+            <div class="edit-result-team-name">@(team.Name)</div>
+            <div class="edit-result-prize">
+                <FluentNumberField @bind-Value="@team.Prize" Min="1" Style="margin-bottom:0" />
+            </div>
+        </div>
+    }
+    </FluentStack>
+    </div>
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton
+        Appearance="Appearance.Neutral"
+        IconStart="@(new Icons.Regular.Size20.ArrowUndo())"
+        OnClick="@CancelAsync">
+        Cancel
+    </FluentButton>
+    <FluentButton
+        Appearance="Appearance.Accent"
+        IconStart="@(new Icons.Regular.Size20.Checkmark())"
+        Loading="@saving"
+        OnClick="@SaveAsync">
+        Save
+    </FluentButton>
+</FluentDialogFooter>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+    [Parameter]
+    public int Content { get; set; } = default!;
+    private int TournamentId => Content;
+    private bool saving = false;
+    private IReadOnlyCollection<TournamentTeamItem> teams = Array.Empty<TournamentTeamItem>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        teams = (await tournamentsClient.GetTournamentTeamsAsync(TournamentId))
+            .OrderBy(t => t.Place)
+            .ThenBy(t => t.Id)
+            .ToArray();
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await dataSource.RunAction(async () =>
+        {
+            var results = teams
+                .Select(t => new TeamResultParams
+                {
+                    TeamId = t.Id,
+                    Place = t.Place,
+                    Prize = t.Prize
+                });
+            await tournamentsClient.UpdateTournamentResultsAsync(TournamentId, results);
+        });
+        if (response.IsSuccessful)
+        {
+            await Dialog.CloseAsync();
+        }
+        toastService.ShowErrors(response.Errors);
+        saving = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+}

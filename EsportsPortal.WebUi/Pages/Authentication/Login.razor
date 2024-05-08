@@ -1,0 +1,77 @@
+﻿@page "/auth/login"
+@inject IAuthenticationService authService
+@inject IToastService toastService
+@inject NavigationManager navManager
+
+<PageTitle>Login</PageTitle>
+
+<FluentLabel Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">Login</FluentLabel>
+
+<FluentCard Style="margin: 16px 0px; padding: 16px; width: 600px; height: 400px;">
+
+    <FluentLabel Style="margin-bottom: 24px;">
+        Please provide your account credentials.
+    </FluentLabel>
+
+    <EditForm Model="@model" OnValidSubmit="ValidHandlerAsync">
+        <FluentTextField
+            Label="Email:"
+            TextFieldType="TextFieldType.Email"
+            Required
+            Placeholder="Enter your email"
+            @bind-Value="@model.Email" />
+
+         <FluentTextField
+             Label="Password:"
+             TextFieldType="TextFieldType.Password"
+             Required
+             Placeholder="Enter your password"
+             @bind-Value="@model.Password" />
+
+         <div style="margin: 24px 0px;" />
+
+         <FluentButton
+             Appearance="Appearance.Accent"
+             Loading="@loading"
+             IconStart="@(new Icons.Regular.Size20.PersonArrowLeft())"
+             Type="ButtonType.Submit">
+             Login
+         </FluentButton>
+     </EditForm>
+ </FluentCard>
+
+ @code {
+    private LoginModel model = new();
+    private bool loading = false;
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private async Task ValidHandlerAsync()
+    {
+        loading = true;
+
+        toastService.ClearAll();
+
+        var result = await authService.LoginAsync(model.Email, model.Password);
+        if (result.IsSuccessful)
+        {
+            model = new();
+            navManager.NavigateTo(ReturnUrl ?? "/", true);
+        }
+        else
+        {
+            toastService.ShowErrors(result.Errors);
+        }
+
+        loading = false;
+    }
+
+    private class LoginModel
+    {
+        public string Email { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+    }
+}
+

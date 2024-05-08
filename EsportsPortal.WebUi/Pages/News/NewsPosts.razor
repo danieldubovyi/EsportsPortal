@@ -1,0 +1,53 @@
+﻿@page "/news"
+
+@inject NewsClient newsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IDialogService dialogService
+@inject NavigationManager navManager
+
+<PageTitle>News</PageTitle>
+
+@if (posts == null)
+{
+    <Loading />
+}
+else
+{
+    <div style="width: 100%">
+        <FluentLabel Style="float:left" Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">News</FluentLabel>
+        <AuthorizeView Roles="@UserRole.Admin">
+            <FluentButton Style="float:right; margin-top: 9px;"
+                Appearance="Appearance.Outline"
+                IconStart="@(new Icons.Regular.Size24.News())"
+                OnClick=CreateNews>
+                <span style="font-weight:bold;color:var(--accent-fill-rest)">Add news</span>
+            </FluentButton>
+        </AuthorizeView>
+    </div>
+
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach(var post in posts)
+        {
+            <NewsPostCard Post="post" />
+        }
+    </FluentStack>
+}
+
+@code {
+    private IReadOnlyCollection<NewsPostItem>? posts;
+
+    protected override async Task OnInitializedAsync()
+    {
+        posts = await newsClient.GetNewsPostsAsync();
+    }
+
+    private async Task CreateNews()
+    {
+        var dialog = await dialogService.ShowDialogAsync<NewsPostDetailsDialog>(new NewsPostDetailsModel { PublishDate = DateTime.Now }, new DialogParameters { Title = "Add news", PrimaryAction = "Create", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            navManager.NavigateTo($"news/{result.Data}");
+        }
+    }
+}

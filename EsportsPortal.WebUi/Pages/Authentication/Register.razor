@@ -1,0 +1,106 @@
+﻿@page "/auth/register"
+@inject IAuthenticationService authService
+@inject IToastService toastService
+@inject NavigationManager navManager
+
+<PageTitle>New user</PageTitle>
+
+<FluentLabel Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">Register</FluentLabel>
+
+<FluentCard Style="margin: 16px 0px; padding: 16px; width: 600px; height: 400px;">
+
+    <FluentLabel Style="margin-bottom: 24px;">
+        Let's get you all set up so you can verify your personal account and begin
+        setting up your profile.
+    </FluentLabel>
+
+    <EditForm Model="@model" OnValidSubmit="ValidHandlerAsync">
+        <FluentTextField
+            Label="Email:"
+            TextFieldType="TextFieldType.Email"
+            Required
+            Placeholder="Enter your email"
+            @bind-Value="@model.Email" />
+
+        <FluentTextField
+            Label="Password:"
+            TextFieldType="TextFieldType.Password"
+            Required
+            Placeholder="Enter your password"
+            @bind-Value="@model.Password" />
+
+        <FluentTextField
+            Label="Confirm password:"
+            TextFieldType="TextFieldType.Password"
+            Required
+            Placeholder="Confirm your password"
+            @bind-Value="@model.ConfirmPassword" />
+
+         <FluentCheckbox
+             Label="I agree to all terms, conditions, privacy policy."
+             @bind-Value="@model.Accept" />
+
+         <div style="margin: 24px 0px;" />
+
+        <FluentButton Appearance="Appearance.Accent"
+            Loading="@loading"
+            IconStart="@(new Icons.Regular.Size20.PersonAdd())"
+            Disabled="@(!model.IsValid)"
+            Type="ButtonType.Submit">
+            Create account
+        </FluentButton>
+     </EditForm>
+ </FluentCard>
+
+ @code {
+    private RegisterModel model = new();
+    private bool loading = false;
+
+    [SupplyParameterFromQuery]
+    public string? ReturnUrl { get; set; }
+
+    private async Task ValidHandlerAsync()
+    {
+        loading = true;
+
+        toastService.ClearAll();
+
+        var result = await authService.RegisterAsync(model.Email, model.Password);
+
+        if (result.IsSuccessful)
+        {
+            model = new();
+
+            if (ReturnUrl != null)
+            {
+                navManager.NavigateTo($"/auth/login?returnUrl={ReturnUrl}");
+            }
+            else
+            {
+                navManager.NavigateTo("/auth/login");
+            }
+        }
+        else
+        {
+            toastService.ShowErrors(result.Errors);
+        }
+
+        loading = false;
+    }
+
+    private class RegisterModel
+    {
+        public string Email { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+
+        public string ConfirmPassword { get; set; } = string.Empty;
+
+        public bool Accept { get; set; }
+
+        public bool IsValid
+        {
+            get => Password == ConfirmPassword && Accept;
+        }
+    }
+}

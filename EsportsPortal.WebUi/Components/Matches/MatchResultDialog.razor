@@ -1,0 +1,105 @@
+﻿@implements IDialogContentComponent<int>
+@inject MatchesClient matchesClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<FluentDialogHeader ShowDismiss="false">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Poll())" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            Match results
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="0">
+        <div class="edit-map-result">
+            <div class="edit-result-map-name edit-result-header" style="width:185px;">Map</div>
+            <div class="edit-result-team-logo" id="team1"><img class="edit-result-team-logo-image" src="@fileUrlProvider.GetFileUrl(team1?.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(team1?.Name)" /></div>
+            <div class="edit-result-team-logo" id="team2"><img class="edit-result-team-logo-image" src="@fileUrlProvider.GetFileUrl(team2?.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(team2?.Name)" /></div>
+            <FluentTooltip Anchor="team1" Position=TooltipPosition.Top Delay=100 UseTooltipService="false">@team1?.Name</FluentTooltip>
+            <FluentTooltip Anchor="team2" Position=TooltipPosition.Top Delay=100 UseTooltipService="false">@team2?.Name</FluentTooltip>
+        </div>
+    </FluentStack>
+    <div style="height:208px;overflow:auto;">
+    <FluentStack Orientation="Orientation.Vertical" VerticalGap="0">
+    @foreach(var map in maps)
+    {
+        <div class="edit-result">
+            <div class="edit-result-map-logo"><img class="edit-result-map-logo-image" src="@fileUrlProvider.GetFileUrl(map.ImageFileName)" alt="Logo of @(map.Name)" /></div>
+            <div class="edit-result-map-name">@(map.Name)</div>
+            <div class="edit-result-points">
+                <FluentNumberField @bind-Value="@map.Team1.Points" Min="1" Style="margin-bottom:0" />
+            </div>
+            <div class="edit-result-points">
+                <FluentNumberField @bind-Value="@map.Team2.Points" Min="1" Style="margin-bottom:0" />
+            </div>
+        </div>
+    }
+    </FluentStack>
+    </div>
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton
+        Appearance="Appearance.Neutral"
+        IconStart="@(new Icons.Regular.Size20.ArrowUndo())"
+        OnClick="@CancelAsync">
+        Cancel
+    </FluentButton>
+    <FluentButton
+        Appearance="Appearance.Accent"
+        IconStart="@(new Icons.Regular.Size20.Checkmark())"
+        Loading="@saving"
+        OnClick="@SaveAsync">
+        Save
+    </FluentButton>
+</FluentDialogFooter>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+    [Parameter]
+    public int Content { get; set; } = default!;
+    private int MatchId => Content;
+    private bool saving = false;
+    private IReadOnlyCollection<MatchMapItem> maps = Array.Empty<MatchMapItem>();
+    private MatchTeam? team1;
+    private MatchTeam? team2;
+
+    protected async override Task OnInitializedAsync()
+    {
+        maps = await matchesClient.GetMatchMapsAsync(MatchId);
+        team1 = maps.First().Team1;
+        team2 = maps.First().Team2;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await dataSource.RunAction(async () =>
+        {
+            var results = maps
+                .Select(t => new MapResultParams
+                {
+                    MapId = t.Id,
+                    Team1RoundWins = t.Team1.Points,
+                    Team2RoundWins = t.Team2.Points
+                });
+            await matchesClient.UpdateMatchResultsAsync(MatchId, results);
+        });
+        if (response.IsSuccessful)
+        {
+            await Dialog.CloseAsync();
+        }
+        toastService.ShowErrors(response.Errors);
+        saving = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+}

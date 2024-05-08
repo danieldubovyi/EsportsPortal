@@ -1,0 +1,12 @@
+﻿.member-photo-image {
+    width: 200px;
+}
+
+.member-name {
+    text-align: center;
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-1-font-size);
+    line-height: var(--type-ramp-plus-1-line-height);
+    color: var(--accent-fill-rest);
+}

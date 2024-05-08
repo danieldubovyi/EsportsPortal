@@ -1,0 +1,24 @@
+﻿@inject IFileUrlProvider fileUrlProvider
+
+<FluentAnchor Href="@($"news/{Post.Id}")" Appearance="Appearance.Hypertext" Style="width:100%">
+    <FluentCard Style="@(GetCardStyle())">
+        <div class="news-title">@Post.Title</div>
+        <div class="news-date">@($"{Post.PublishDate:MMM dd, yyyy}")</div>
+    </FluentCard>
+</FluentAnchor>
+
+
+@code {
+    [Parameter]
+    public NewsPostItem Post { get; set; } = default!;
+
+    private string GetCardStyle()
+    {
+        if (Post.ImageFileName == null)
+        {
+            return "padding: 5px 10px 0px 10px;";
+        }
+
+        return $"padding: 5px 10px 0px 130px; background-image: url('{fileUrlProvider.GetFileUrl(Post.ImageFileName)}');background-size: contain;background-repeat: no-repeat;";
+    }
+}

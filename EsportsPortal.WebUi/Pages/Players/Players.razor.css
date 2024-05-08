@@ -1,0 +1,27 @@
+﻿.player-rating {
+    width: 30px;
+    float: left;
+    line-height: 2rem;
+    color: var(--accent-fill-rest);
+    padding-top: 3px;
+}
+
+.player-photo {
+    width: 85px;
+    float: left;
+    text-align: center;
+    padding-top: 3px;
+}
+
+.player-photo-image {
+    height: 2rem;
+    margin: auto;
+}
+
+.player-name {
+    float: left;
+    line-height: 2rem;
+    color: var(--accent-fill-rest);
+    font-size: var(--type-ramp-plus-2-font-size);
+    padding-top: 3px;
+}

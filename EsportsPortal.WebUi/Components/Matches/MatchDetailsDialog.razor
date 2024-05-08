@@ -1,0 +1,183 @@
+﻿@implements IDialogContentComponent<MatchDetailsModel>
+@inject MatchesClient matchesClient
+@inject TournamentsClient tournamentsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<EditForm Model="@Content" OnValidSubmit="SaveAsync">
+<FluentDialogHeader ShowDismiss="false">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.HeadsetVr())" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            @Dialog.Instance.Parameters.Title
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+    <FluentDatePicker
+        Label="Match date"
+        Required
+        @bind-Value="@Content.DateTime" />
+
+    <FluentTimePicker
+        Label="Match time"
+        Required
+        @bind-Value="@Content.DateTime" />
+
+    <FluentSelect
+        Label="Team 1:"
+        Required
+        Items=@team1Options
+        TOption="Option<string>"
+        OptionText="@(i => i.Text)"
+        OptionValue="@(i => i.Value)"
+        OptionSelected="@(i => i.Selected)"
+        OptionDisabled="@(i => i.Disabled)"
+        ValueChanged="Team1Changed"
+        Position="SelectPosition.Below" />
+
+    <FluentSelect
+        Label="Team 2:"
+        Required
+        Items=@team2Options
+        TOption="Option<string>"
+        OptionText="@(i => i.Text)"
+        OptionValue="@(i => i.Value)"
+        OptionSelected="@(i => i.Selected)"
+        OptionDisabled="@(i => i.Disabled)"
+        ValueChanged="Team2Changed"
+        Position="SelectPosition.Below" />
+
+    <FluentSelect
+        Label="Match format:"
+        Required
+        Items=@matchFormatOptions
+        TOption="Option<string>"
+        OptionText="@(i => i.Text)"
+        OptionValue="@(i => i.Value)"
+        OptionSelected="@(i => i.Selected)"
+        OptionDisabled="@(i => i.Disabled)"
+        ValueChanged="MatchFormatChanged"
+        Position="SelectPosition.Below" />
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton
+        Appearance="Appearance.Neutral"
+        IconStart="@(new Icons.Regular.Size20.ArrowUndo())"
+        OnClick="@CancelAsync">
+        @Dialog.Instance.Parameters.SecondaryAction
+    </FluentButton>
+    <FluentButton
+        Appearance="Appearance.Accent"
+        IconStart="@(new Icons.Regular.Size20.Checkmark())"
+        Loading="@saving"
+        Type="ButtonType.Submit">
+        @Dialog.Instance.Parameters.PrimaryAction
+    </FluentButton>
+</FluentDialogFooter>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+    [Parameter]
+    public MatchDetailsModel Content { get; set; } = default!;
+    private bool saving = false;
+    private List<Option<string>> team1Options = default!;
+    private List<Option<string>> team2Options = default!;
+    private List<Option<string>> matchFormatOptions = default!;
+
+    protected async override Task OnInitializedAsync()
+    {
+        var teams = await tournamentsClient.GetTournamentTeamsAsync(Content.TournamentId);
+        team1Options = GetTeamOptions(teams, Content.Team1Id);
+        team2Options = GetTeamOptions(teams, Content.Team2Id);
+        matchFormatOptions = GetMatchFormatOptions();
+    }
+
+    private List<Option<string>> GetTeamOptions(IReadOnlyCollection<TournamentTeamItem> teams, int? selectedTeamId)
+    {
+        var teamOptions = teams
+            .Select(t => new Option<string>
+            {
+                Value = t.Id.ToString(),
+                Text = t.Name,
+                Icon = (Icon.FromImageUrl(fileUrlProvider.GetFileUrl(t.LogoFileName ?? DefaultImages.NoLogo)), Color.Neutral, "start"),
+                Selected = t.Id == selectedTeamId
+            }).ToList();
+        if (selectedTeamId == null)
+        {
+            teamOptions.Insert(0, new Option<string> { Value = "", Text = "Select a team..." });
+        }
+        return teamOptions;
+    }
+
+    private List<Option<string>> GetMatchFormatOptions()
+    {
+        var formatOptions = Enum.GetValues<MatchFormat>()
+            .Select(f => new Option<string>
+                {
+                    Value = f.ToString(),
+                    Text = f.ToString(),
+                    Selected = f == Content.MatchFormat
+                }).ToList();
+        if (Content.MatchFormat == null)
+        {
+            formatOptions.Insert(0, new Option<string> { Value = "", Text = "Select a format..." });
+        }
+        return formatOptions;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await dataSource.RunAction(async () =>
+        {
+            var @params = new MatchCreateParams
+            {
+                TournamentId = Content.TournamentId,
+                Team1Id = Content.Team1Id!.Value,
+                Team2Id = Content.Team2Id!.Value,
+                DateTime = Content.DateTime!.Value,
+                MatchFormat = Content.MatchFormat!.Value
+            };
+            if (Content.Id is null)
+            {
+                return await matchesClient.CreateMatchAsync(@params);
+            }
+
+            await matchesClient.UpdateMatchAsync(Content.Id.Value, @params);
+
+            return Content.Id.Value;
+        });
+        if (response.IsSuccessful)
+        {
+            await Dialog.CloseAsync(response.Result);
+        }
+        toastService.ShowErrors(response.Errors);
+        saving = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+
+    private void Team1Changed(string? value)
+    {
+        Content.Team1Id = int.TryParse(value, out var teamId) ? teamId : null;
+    }
+
+    private void Team2Changed(string? value)
+    {
+        Content.Team2Id = int.TryParse(value, out var teamId) ? teamId : null;
+    }
+
+    private void MatchFormatChanged(string? value)
+    {
+        Content.MatchFormat = Enum.TryParse<MatchFormat>(value, out var format) ? format : null;
+    }
+}

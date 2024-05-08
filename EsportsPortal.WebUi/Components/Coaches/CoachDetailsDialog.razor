@@ -1,0 +1,187 @@
+﻿@implements IDialogContentComponent<CoachDetailsModel>
+@inject CoachesClient coachesClient
+@inject CountriesClient countriesClient
+@inject TeamsClient teamsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<EditForm Model="@Content" OnValidSubmit="SaveAsync">
+<FluentDialogHeader ShowDismiss="false">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Guest())" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            @Dialog.Instance.Parameters.Title
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+        <FluentTextField
+            Label="FirstName:"
+            TextFieldType="TextFieldType.Text"
+            Required
+            Placeholder="Enter first name"
+            @bind-Value="@Content.FirstName" />
+
+        <FluentTextField
+            Label="LastName:"
+            TextFieldType="TextFieldType.Text"
+            Required
+            Placeholder="Enter last name"
+            @bind-Value="@Content.LastName" />
+
+        <FluentTextField
+            Label="Nickame:"
+            TextFieldType="TextFieldType.Text"
+            Required
+            Placeholder="Enter nickname"
+            @bind-Value="@Content.Nickname" />
+
+        <FluentDatePicker
+            Label="Date of birth:"
+            Required
+            Placeholder="Enter date of birth"
+            @bind-Value="@Content.DateOfBirth" />
+
+        <FluentSelect
+            Label="Team:"
+            Items=@teamOptions
+            OptionText="@(i => i.Text)"
+            OptionValue="@(i => i.Value)"
+            OptionSelected="@(i => i.Selected)"
+            OptionDisabled="@(i => i.Disabled)"
+            ValueChanged="TeamChanged"
+            Position="SelectPosition.Below"
+            Height="200px" />
+
+         <FluentSelect
+            Label="Country:"
+            Required
+            Items=@countryOptions
+            OptionText="@(i => i.Text)"
+            OptionValue="@(i => i.Value)"
+            OptionSelected="@(i => i.Selected)"
+            OptionDisabled="@(i => i.Disabled)"
+            ValueChanged="CountryChanged"
+            Position="SelectPosition.Below"
+            Height="200px" />
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton
+        Appearance="Appearance.Neutral"
+        IconStart="@(new Icons.Regular.Size20.ArrowUndo())"
+        OnClick="@CancelAsync">
+        @Dialog.Instance.Parameters.SecondaryAction
+    </FluentButton>
+    <FluentButton
+        Appearance="Appearance.Accent"
+        IconStart="@(new Icons.Regular.Size20.Checkmark())"
+        Loading="@saving"
+        Type="ButtonType.Submit">
+        @Dialog.Instance.Parameters.PrimaryAction
+    </FluentButton>
+</FluentDialogFooter>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+    [Parameter]
+    public CoachDetailsModel Content { get; set; } = default!;
+    private bool saving = false;
+    private List<Option<string>> countryOptions = default!;
+    private List<Option<string>> teamOptions = default!;
+
+    protected async override Task OnInitializedAsync()
+    {
+        countryOptions = await GetCountryOptions();
+        teamOptions = await GetTeamOptions();
+    }
+
+    private async Task<List<Option<string>>> GetCountryOptions()
+    {
+        var countries = await countriesClient.GetCountriesAsync();
+        return (new[] { new Option<string> { Value = "", Text = "Select a country..." } })
+            .Concat(
+                countries.Select(c => new Option<string>
+                {
+                    Value = c.Id.ToString(),
+                    Text = c.Name,
+                    Icon = (Icon.FromImageUrl(fileUrlProvider.GetFileUrl(c.FlagFileName)), Color.Neutral, "start"),
+                    Selected = c.Id == Content.CountryId
+                }))
+            .ToList();
+    }
+
+    private async Task<List<Option<string>>> GetTeamOptions()
+    {
+        var teams = await teamsClient.GetTeamsAsync();
+        return new[]
+            {
+                new Option<string>
+                {
+                    Value = "",
+                    Text = "No team",
+                    Icon = (Icon.FromImageUrl(fileUrlProvider.GetFileUrl(DefaultImages.NoLogo)), Color.Neutral, "start"),
+                    Selected = Content.TeamId is null
+                }
+            }
+            .Concat(
+                teams.Select(t => new Option<string>
+                {
+                    Value = t.Id.ToString(),
+                    Text = t.Name,
+                    Icon = (Icon.FromImageUrl(fileUrlProvider.GetFileUrl(t.LogoFileName ?? DefaultImages.NoLogo)), Color.Neutral, "start"),
+                    Selected = t.Id == Content.TeamId
+                }))
+            .ToList();
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await dataSource.RunAction(async () =>
+        {
+            var @params = new CoachCreateParams
+            {
+                FirstName = Content.FirstName!,
+                LastName = Content.LastName!,
+                Nickname = Content.Nickname!,
+                DateOfBirth = Content.DateOfBirth!.Value,
+                TeamId = Content.TeamId,
+                CountryId = Content.CountryId!.Value,
+            };
+            if (Content.Id is null)
+            {
+                return await coachesClient.CreateCoachAsync(@params);
+            }
+
+            await coachesClient.UpdateCoachAsync(Content.Id.Value, @params);
+
+            return Content.Id.Value;
+        });
+        if (response.IsSuccessful)
+        {
+            await Dialog.CloseAsync(response.Result);
+        }
+        toastService.ShowErrors(response.Errors);
+        saving = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+
+    private void CountryChanged(string? args)
+    {
+        Content.CountryId = int.TryParse(args, out var countryId) ? countryId : null;
+    }
+
+    private void TeamChanged(string? args)
+    {
+        Content.TeamId = int.TryParse(args, out var teamId) ? teamId : null;
+    }
+}

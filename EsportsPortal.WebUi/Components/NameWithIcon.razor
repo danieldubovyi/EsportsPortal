@@ -1,0 +1,36 @@
+﻿<div class="container" style="float:@GetFloat();@Style">
+    <div class="@(IconPosition == HorizontalPosition.Left ? "name-right" : "name-left")">@Name</div>
+    <div class="icon"><img class="icon-image" style="@ImageStyle" src="@ImageUrl" alt="Icon of @(Name)" /></div>
+</div>
+
+@code {
+    [Parameter]
+    public string Name { get; set; } = default!;
+
+    [Parameter]
+    public string ImageUrl { get; set; } = default!;
+
+    [Parameter]
+    public string Style { get; set; } = default!;
+
+    [Parameter]
+    public string ImageStyle { get; set; } = default!;
+
+    [Parameter]
+    public HorizontalPosition IconPosition { get; set; }
+
+    [Parameter]
+    public HorizontalPosition HorizontalPosition { get; set; }
+
+    private string GetFloat()
+    {
+        return HorizontalPosition switch
+        {
+            HorizontalPosition.Right => "right",
+            HorizontalPosition.Left => "left",
+            _ => "none"
+        };
+    }
+}
+
+

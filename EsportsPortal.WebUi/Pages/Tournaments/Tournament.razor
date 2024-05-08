@@ -1,0 +1,249 @@
+﻿@page "/tournaments/{tournamentId:int}"
+@inject TournamentsClient tournamentsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject NavigationManager navManager
+@inject IDialogService dialogService
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<PageTitle>@tournament?.Name</PageTitle>
+@if (tournament == null || teams == null || matches == null)
+{
+    <Loading />
+}
+else
+{
+<FluentCard Style="background-color: var(--neutral-layer-card-container);">
+    <div class="tournament-info">
+        <AuthorizeView Roles="@UserRole.Admin">
+        <div class="tournament-actions">
+            <FluentButton Id="menuButton" Appearance="Appearance.Outline" OnClick="@(() => menuOpen = !menuOpen)">
+                <FluentIcon Value="@(new Icons.Regular.Size24.Navigation())" />
+            </FluentButton>
+            <FluentMenu Anchor="menuButton" @bind-Open="menuOpen">
+                <FluentMenuItem OnClick="Edit">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Slot="start" />
+                    Edit
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="UploadLogo">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.ImageEdit())" Slot="start" />
+                    Upload logo
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="ManageTeams">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.PeopleTeam())" Slot="start" />
+                    Manage teams
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="AddMatch">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.AddSquare())" Slot="start" />
+                    Add match
+                </FluentMenuItem><FluentMenuItem OnClick="ManageResults">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Poll())" Slot="start" />
+                    Manage results
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="Delete">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" />
+                    Delete
+                </FluentMenuItem>
+            </FluentMenu>
+        </div>
+        </AuthorizeView>
+        <div class="tournament-logo">
+            <img class="tournament-logo-image" src="@fileUrlProvider.GetFileUrl(tournament.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @tournament.Name" />
+            <AuthorizeView Roles="@UserRole.Admin">
+                <FluentInputFile @ref="logoUploadComponent"
+                    DragDropZoneVisible="false"
+                    Mode="InputFileMode.Stream"
+                    Multiple="false"
+                    AnchorId="uploadLogoMenu"
+                    MaximumFileSize="@(10 * 1024 * 1024)"
+                    Accept="image/*"
+                    OnFileUploaded="@OnLogoUploadCompleted" />
+            </AuthorizeView>
+        </div>
+        <div style="float:left">
+            <div class="tournament-name">@tournament.Name</div>
+            <div class="tournament-field">
+                <div class="tournament-field-label">Dates</div>
+                <div class="tournament-field-value">@tournament.GetDateRangeString()</div>
+            </div>
+            <div class="tournament-field">
+                <div class="tournament-field-label">Location</div>
+                <div class="tournament-field-value">
+                    <LabelWithIcon
+                        Label="@($"{tournament.City}, {tournament.CountryName}")"
+                        ImageUrl="@fileUrlProvider.GetFileUrl(tournament.CountryFlagFileName)"
+                        Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;"
+                        ImageSize="20px"
+                    />
+                </div>
+            </div>
+            <div class="tournament-field">
+                <div class="tournament-field-label">Prize pool</div>
+                <div class="tournament-field-value">@(tournament.PrizePool.ToString("C0"))</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="caption">Teams</div>
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach(var team in teams.OrderBy(p => p.Place ?? int.MaxValue))
+        {
+            <TournamentTeamCard Team="@team" />
+        }
+    </FluentStack>
+
+    <div class="caption" style="padding-top:20px">Matches</div>
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach(var match in matches.OrderByDescending(p => p.DateTime))
+        {
+            <MatchCard Match="@match" />
+        }
+    </FluentStack>
+
+</FluentCard>
+}
+@code {
+
+    [Parameter]
+    public int TournamentId { get; set; }
+
+    private TournamentDetails? tournament;
+    private IReadOnlyCollection<TournamentTeamItem>? teams;
+    private IReadOnlyCollection<MatchListItem>? matches;
+    private bool menuOpen;
+    private FluentInputFile logoUploadComponent = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var tournamentTask = tournamentsClient.GetTournamentDetailsAsync(TournamentId);
+        var teamsTask = tournamentsClient.GetTournamentTeamsAsync(TournamentId);
+        var matchesTask = tournamentsClient.GetTournamentMatchesAsync(TournamentId);
+
+        await Task.WhenAll(tournamentTask, teamsTask, matchesTask);
+
+        tournament = tournamentTask.Result;
+        teams = teamsTask.Result;
+        matches = matchesTask.Result;
+    }
+
+    private async Task Edit()
+    {
+        if (tournament == null)
+        {
+            return;
+        }
+        var parameters = new DialogParameters { Title = "Tournament info", PrimaryAction = "Save", PreventDismissOnOverlayClick = true };
+        var tournamentDetailsModel = new TournamentDetailsModel
+        {
+            Id = tournament.Id,
+            Name = tournament.Name,
+            StartDate = tournament.StartDate.Date,
+            EndDate = tournament.EndDate.Date,
+            LocationId = tournament.LocationId,
+            PrizePool = tournament.PrizePool
+        };
+        var dialog = await dialogService.ShowDialogAsync<TournamentDetailsDialog>(tournamentDetailsModel, parameters);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            tournament = await tournamentsClient.GetTournamentDetailsAsync(TournamentId);
+            toastService.ShowSuccess("Tournament was saved successfully");
+        }
+    }
+
+    private async Task UploadLogo()
+    {
+        await logoUploadComponent.ShowFilesDialogAsync();
+    }
+
+    private async Task OnLogoUploadCompleted(FluentInputFileEventArgs file)
+    {
+        var response = await dataSource.RunAction(async () =>
+        {
+            var fileParameter = new FileParameter(file.Stream!, file.Name, file.ContentType);
+            await tournamentsClient.UpdateTournamentLogoAsync(TournamentId, fileParameter);
+        });
+        if (response.IsSuccessful)
+        {
+            tournament = await tournamentsClient.GetTournamentDetailsAsync(TournamentId);
+            toastService.ShowSuccess("Tournament logo was updated successfully");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task Delete()
+    {
+        var dialog = await dialogService.ShowConfirmationAsync($"You want to delete '{tournament?.Name}' tournament. Are you sure?");
+        var result = await dialog.Result;
+        if(result.Cancelled)
+        {
+            return;
+        }
+        var response = await dataSource.RunAction(async () =>
+        {
+            await tournamentsClient.DeleteTournamentAsync(TournamentId);
+        });
+        if (response.IsSuccessful)
+        {
+            await (await dialogService.ShowSuccessAsync($"'{tournament?.Name}' tournament was deleted successfully")).Result;
+            navManager.NavigateTo($"/tournaments");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task ManageTeams()
+    {
+        if (tournament == null)
+        {
+            return;
+        }
+        var dialog = await dialogService.ShowDialogAsync<TournamentTeamsDialog>(tournament.Id, new() { Height = "400px", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            teams = await tournamentsClient.GetTournamentTeamsAsync(TournamentId);
+            toastService.ShowSuccess("Tournament teams was saved successfully");
+        }
+    }
+
+    private async Task ManageResults()
+    {
+        if (tournament == null)
+        {
+            return;
+        }
+        
+        if(teams == null || teams.Count < 1)
+        {
+            toastService.ShowWarning("Please add teams first");
+            return;
+        }
+
+        var dialog = await dialogService.ShowDialogAsync<TournamentResultDialog>(tournament.Id, new() { Height = "400px", Width = "600px", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            teams = await tournamentsClient.GetTournamentTeamsAsync(TournamentId);
+            toastService.ShowSuccess("Tournament teams was saved successfully");
+        }
+    }
+
+    private async Task AddMatch()
+    {
+        if (tournament == null)
+        {
+            return;
+        }
+        var dialog = await dialogService.ShowDialogAsync<MatchDetailsDialog>(new MatchDetailsModel(TournamentId), new DialogParameters { Title = "New match", PrimaryAction = "Create", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            matches = await tournamentsClient.GetTournamentMatchesAsync(TournamentId);
+            toastService.ShowSuccess("Match was created successfully");
+        }
+    }
+}

@@ -1,0 +1,100 @@
+﻿@implements IDialogContentComponent<int>
+@inject MatchesClient matchesClient
+@inject MapsClient mapsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<FluentDialogHeader ShowDismiss="false">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Map())" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            Match maps
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+    <FluentSelect
+        Label="Select match maps"
+        Multiple="true"
+        TOption="Option<string>"
+        Items="@mapOptions"
+        OptionText="@(i => i.Text)"
+        OptionValue="@(i => i.Value)"
+        OptionSelected="@(i => i.Selected)"
+        OptionDisabled="@(i => i.Disabled)"
+        @bind-SelectedOptions="@selectedOptions"
+        Height="230px"
+        Style="box-shadow: var(--elevation-shadow-card-active);"/>
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton
+        Appearance="Appearance.Neutral"
+        IconStart="@(new Icons.Regular.Size20.ArrowUndo())"
+        OnClick="@CancelAsync">
+        Cancel
+    </FluentButton>
+    <FluentButton
+        Appearance="Appearance.Accent"
+        IconStart="@(new Icons.Regular.Size20.Checkmark())"
+        Loading="@saving"
+        OnClick="@SaveAsync">
+        Save
+    </FluentButton>
+</FluentDialogFooter>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+    [Parameter]
+    public int Content { get; set; } = default!;
+    private int MatchId => Content;
+    private bool saving = false;
+    private List<Option<string>> mapOptions = default!;
+    private IEnumerable<Option<string>> selectedOptions = default!;
+
+    protected async override Task OnInitializedAsync()
+    {
+        mapOptions = await GetMapsOptions();
+    }
+
+    private async Task<List<Option<string>>> GetMapsOptions()
+    {
+        var matchMapIds = (await matchesClient.GetMatchMapsAsync(MatchId))
+            .Select(t => t.Id).ToArray();
+        var maps = await mapsClient.GetMapsAsync();
+        return maps
+            .Select(m => new Option<string>
+            {
+                Value = m.Id.ToString(),
+                Text = m.Name,
+                Icon = (Icon.FromImageUrl(fileUrlProvider.GetFileUrl(m.ImageFileName)), Color.Neutral, "start"),
+                Selected = matchMapIds.Contains(m.Id)
+            })
+            .ToList();
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await dataSource.RunAction(async () =>
+        {
+            var mapIds = selectedOptions.Select(o => int.Parse(o.Value!)).ToArray();
+
+            await matchesClient.UpdateMatchMapsAsync(MatchId, mapIds);
+        });
+        if (response.IsSuccessful)
+        {
+            await Dialog.CloseAsync();
+        }
+        toastService.ShowErrors(response.Errors);
+        saving = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+}

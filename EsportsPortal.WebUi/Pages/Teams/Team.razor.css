@@ -1,0 +1,60 @@
+﻿.team-info {
+    padding: 40px;
+    height: 250px;
+}
+
+.team-logo {
+    float: left;
+    text-align: center;
+    margin-right: 60px;
+}
+
+.team-logo-image {
+    height: 10rem;
+    margin: auto;
+}
+
+.team-name {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: 64px;
+    line-height: 76px;
+    color: var(--accent-fill-rest);
+    padding-bottom: 15px;
+}
+
+.team-field-label {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding: 5px;
+    text-align: right;
+    width: 85px;
+    display: inline-block;
+}
+
+.team-field-value {
+    font-size: var(--type-ramp-plus-2-font-size);
+    color: var(--accent-fill-rest);
+    padding-left: 5px;
+    display: inline-block;
+    font-weight: bold;
+}
+
+.team-actions{
+    margin-top:-30px;
+    margin-right:-25px;
+    float: right;
+}
+
+.caption {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding-left: 40px;
+    padding-bottom: 20px;
+}

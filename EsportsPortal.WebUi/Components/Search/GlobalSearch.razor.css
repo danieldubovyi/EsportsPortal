@@ -1,0 +1,13 @@
+﻿.search-result-container {
+    overflow: auto;
+    max-height: 400px;
+    padding-top: 3px;
+    width: inherit;
+}
+
+.search-result-name {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-1-font-size);
+    color: var(--neutral-stroke-strong-rest);
+}

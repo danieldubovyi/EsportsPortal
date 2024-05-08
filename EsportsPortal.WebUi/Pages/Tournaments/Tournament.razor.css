@@ -1,0 +1,59 @@
+﻿.tournament-info {
+    padding: 20px;
+    height: 250px;
+}
+
+.tournament-logo {
+    float: left;
+    text-align: center;
+    margin-right: 60px;
+}
+
+.tournament-logo-image {
+    height: 200px;
+    margin: auto;
+}
+
+.tournament-name {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: 36px;
+    line-height: 76px;
+    color: var(--accent-fill-rest);
+    padding-bottom: 15px;
+}
+
+.tournament-field-label {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding: 5px;
+    text-align: right;
+    width: 110px;
+    display: inline-block;
+}
+
+.tournament-field-value {
+    font-size: var(--type-ramp-plus-2-font-size);
+    color: var(--accent-fill-rest);
+    padding-left: 5px;
+    display: inline-block;
+    font-weight: bold;
+}
+
+.tournament-actions {
+    margin-top: -30px;
+    margin-right: -25px;
+    float: right;
+}
+
+.caption {
+    font-family: var(--body-font);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    line-height: var(--type-ramp-plus-2-line-height);
+    color: var(--neutral-stroke-strong-rest);
+    padding-bottom: 20px;
+}

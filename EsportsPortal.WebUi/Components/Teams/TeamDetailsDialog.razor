@@ -1,0 +1,129 @@
+﻿@implements IDialogContentComponent<TeamDetailsModel>
+@inject TeamsClient teamsClient
+@inject RegionsClient regionsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<EditForm Model="@Content" OnValidSubmit="SaveAsync">
+<FluentDialogHeader ShowDismiss="false">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.PeopleTeam())" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            @Dialog.Instance.Parameters.Title
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+        <FluentTextField
+            Label="Name:"
+            TextFieldType="TextFieldType.Text"
+            Required
+            Placeholder="Enter team name"
+            @bind-Value="@Content.Name" />
+
+         <FluentSelect
+            Label="Region:"
+            Required
+            Items=@regionOptions
+            TOption="Option<string>"
+            OptionText="@(i => i.Text)"
+            OptionValue="@(i => i.Value)"
+            OptionSelected="@(i => i.Selected)"
+            OptionDisabled="@(i => i.Disabled)"
+            ValueChanged="RegionChanged"
+            Position="SelectPosition.Below" />
+
+        <FluentNumberField @bind-Value="@Content.Ranking"
+            Required
+            Placeholder="Enter team ranking"
+            Label="Ranking:"
+            Min="1" />
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton
+        Appearance="Appearance.Neutral"
+        IconStart="@(new Icons.Regular.Size20.ArrowUndo())"
+        OnClick="@CancelAsync">
+        @Dialog.Instance.Parameters.SecondaryAction
+    </FluentButton>
+    <FluentButton
+        Appearance="Appearance.Accent"
+        IconStart="@(new Icons.Regular.Size20.Checkmark())"
+        Loading="@saving"
+        Type="ButtonType.Submit">
+        @Dialog.Instance.Parameters.PrimaryAction
+    </FluentButton>
+</FluentDialogFooter>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+    [Parameter]
+    public TeamDetailsModel Content { get; set; } = default!;
+    private bool saving = false;
+    private List<Option<string>> regionOptions = default!;
+
+    protected async override Task OnInitializedAsync()
+    {
+        regionOptions = await GetRegionOptionsAsync();
+    }
+
+    private async Task<List<Option<string>>> GetRegionOptionsAsync()
+    {
+        var regions = await regionsClient.GetRegionsAsync();
+        var regionOptions = regions.Select(r => new Option<string>
+            {
+                Value = r.Id.ToString(),
+                Text = r.Name,
+                Icon = (Icon.FromImageUrl(fileUrlProvider.GetFileUrl(r.FlagFileName)), Color.Neutral, "start"),
+                Selected = r.Id == Content.RegionId
+            }).ToList();
+        if (Content.RegionId == null)
+        {
+            regionOptions.Insert(0, new Option<string> { Value = "", Text = "Select a region..." });
+        }
+        return regionOptions;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await dataSource.RunAction(async () =>
+        {
+            var @params = new TeamCreateParams
+            {
+                Name = Content.Name!,
+                RegionId = Content.RegionId!.Value,
+                Ranking = Content.Ranking!.Value
+            };
+            if (Content.Id is null)
+            {
+                return await teamsClient.CreateTeamAsync(@params);
+            }
+
+            await teamsClient.UpdateTeamAsync(Content.Id.Value, @params);
+
+            return Content.Id.Value;
+        });
+        if (response.IsSuccessful)
+        {
+            await Dialog.CloseAsync(response.Result);
+        }
+        toastService.ShowErrors(response.Errors);
+        saving = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+
+    private void RegionChanged(string? value)
+    {
+        Content.RegionId = int.TryParse(value, out var regionId) ? regionId : null;
+    }
+}

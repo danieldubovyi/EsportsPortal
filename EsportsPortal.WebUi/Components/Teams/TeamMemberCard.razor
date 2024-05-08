@@ -1,0 +1,15 @@
+﻿@inject IFileUrlProvider FileUrlProvider
+
+<FluentAnchor Href="@MemberUrl" Appearance="Appearance.Hypertext">
+    <div class="member-photo">
+        <img class="member-photo-image" src="@FileUrlProvider.GetFileUrl(TeamMember.PhotoFileName ?? DefaultImages.NoPhoto)" alt="Photo of @TeamMember.Nickname" /></div>
+    <div class="member-name">@TeamMember.Nickname</div>
+</FluentAnchor>
+
+@code {
+    [Parameter]
+    public TeamMember TeamMember { get; set; } = default!;
+
+    [Parameter]
+    public string MemberUrl { get; set; } = default!;
+}

@@ -1,0 +1,98 @@
+﻿@inject SearchClient searchClient
+@inject IFileUrlProvider fileUrlProvider
+@inject NavigationManager navManager
+
+<FluentSearch
+    Id="searchInput"
+    @bind-Value="@searchValue"
+    @bind-Value:after=HandleSearchInput
+    Style="width:400px"
+/>
+
+<FluentMenu Anchor="searchInput" @bind-Open=@showResults Width="400px" Style="width:400px">
+    <div class="search-result-container">
+    @if (results.Count > 0)
+    {
+        @foreach (var result in results)
+        {
+        <FluentMenuItem OnClick="@(() => NavigateTo(result))">
+            <FluentIcon Value="@(GetLogoIcon(result))" Slot="start" />
+            <span class="search-result-name">@result.Name</span>
+            <FluentIcon Value="@(GetTypeIcon(result))" Slot="end" />
+        </FluentMenuItem>
+        }
+    }
+    else
+    {
+        <FluentMenuItem Style="text-align:center">
+            <span class="search-result-name">no results</span>
+        </FluentMenuItem>
+    }
+    </div>
+</FluentMenu>
+@code {
+    private string? searchValue;
+    private bool showResults;
+    private IReadOnlyCollection<SearchResult> results = [];
+
+    private async Task HandleSearchInput()
+    {
+        if (string.IsNullOrWhiteSpace(searchValue))
+        {
+            showResults = false;
+            searchValue = string.Empty;
+            return;
+        }
+
+        results = await searchClient.SearchAsync(searchValue);
+        showResults = true;
+    }
+
+    private Icon GetLogoIcon(SearchResult result)
+    {
+        if (result.ImageFileName != null)
+        {
+            return Icon.FromImageUrl(fileUrlProvider.GetFileUrl(result.ImageFileName));
+        }
+
+        if (result.Type == SearchResultType.Player || result.Type == SearchResultType.Coach)
+        {
+            return Icon.FromImageUrl(fileUrlProvider.GetFileUrl(DefaultImages.NoPhoto));
+        }
+
+        return Icon.FromImageUrl(fileUrlProvider.GetFileUrl(DefaultImages.NoLogo));
+    }
+
+    private Icon GetTypeIcon(SearchResult result)
+    {
+        return result.Type switch
+        {
+            SearchResultType.Team => new Icons.Regular.Size24.PeopleTeam(),
+            SearchResultType.Player => new Icons.Regular.Size24.Person(),
+            SearchResultType.Coach => new Icons.Regular.Size24.Guest(),
+            SearchResultType.Tournament => new Icons.Regular.Size24.Trophy(),
+            _ => new Icons.Regular.Size24.SearchInfo()
+        };
+    }
+
+    private void NavigateTo(SearchResult result)
+    {
+        if (result.Type == SearchResultType.Team)
+        {
+            navManager.NavigateTo($"teams/{result.Id}");
+        }
+        if (result.Type == SearchResultType.Player)
+        {
+            navManager.NavigateTo($"players/{result.Id}");
+        }
+        if (result.Type == SearchResultType.Coach)
+        {
+            navManager.NavigateTo($"coaches/{result.Id}");
+        }
+        if (result.Type == SearchResultType.Tournament)
+        {
+            navManager.NavigateTo($"tournaments/{result.Id}");
+        }
+        searchValue = string.Empty;
+    }
+}

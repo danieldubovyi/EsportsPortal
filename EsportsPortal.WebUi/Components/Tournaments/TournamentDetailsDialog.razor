@@ -1,0 +1,142 @@
+﻿@implements IDialogContentComponent<TournamentDetailsModel>
+@inject TournamentsClient tournamentsClient
+@inject LocationsClient locationsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<EditForm Model="@Content" OnValidSubmit="SaveAsync">
+<FluentDialogHeader ShowDismiss="false">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Trophy())" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            @Dialog.Instance.Parameters.Title
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+    <FluentTextField
+        Label="Name:"
+        TextFieldType="TextFieldType.Text"
+        Required
+        Placeholder="Enter tournament name"
+        @bind-Value="@Content.Name" />
+
+    <FluentDatePicker
+        Label="Start date"
+        Required
+        @bind-Value="@Content.StartDate" />
+
+    <FluentDatePicker
+        Label="End date"
+        Required
+        @bind-Value="@Content.EndDate" />
+
+    <FluentSelect
+        Label="Location:"
+        Required
+        Items=@locationOptions
+        TOption="Option<string>"
+        OptionText="@(i => i.Text)"
+        OptionValue="@(i => i.Value)"
+        OptionSelected="@(i => i.Selected)"
+        OptionDisabled="@(i => i.Disabled)"
+        ValueChanged="LocationChanged"
+        Position="SelectPosition.Below" />
+
+    <FluentNumberField
+        Label="Prize pool:"
+        Required
+        Placeholder="Enter prize pool"
+        Min="1"
+        @bind-Value="@Content.PrizePool" />
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton
+        Appearance="Appearance.Neutral"
+        IconStart="@(new Icons.Regular.Size20.ArrowUndo())"
+        OnClick="@CancelAsync">
+        @Dialog.Instance.Parameters.SecondaryAction
+    </FluentButton>
+    <FluentButton
+        Appearance="Appearance.Accent"
+        IconStart="@(new Icons.Regular.Size20.Checkmark())"
+        Loading="@saving"
+        Type="ButtonType.Submit">
+        @Dialog.Instance.Parameters.PrimaryAction
+    </FluentButton>
+</FluentDialogFooter>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+    [Parameter]
+    public TournamentDetailsModel Content { get; set; } = default!;
+    private bool saving = false;
+    private List<Option<string>> locationOptions = default!;
+
+    protected async override Task OnInitializedAsync()
+    {
+        locationOptions = await GetLocationOptionsAsync();
+    }
+
+    private async Task<List<Option<string>>> GetLocationOptionsAsync()
+    {
+        var locations = await locationsClient.GetLocationsAsync();
+        var locationOptions = locations.Select(r => new Option<string>
+            {
+                Value = r.Id.ToString(),
+                Text = $"{r.City}, {r.CountryName}",
+                Icon = (Icon.FromImageUrl(fileUrlProvider.GetFileUrl(r.CountryFlagFileName)), Color.Neutral, "start"),
+                Selected = r.Id == Content.LocationId
+            }).ToList();
+        if (Content.LocationId == null)
+        {
+            locationOptions.Insert(0, new Option<string> { Value = "", Text = "Select a location..." });
+        }
+        return locationOptions;
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await dataSource.RunAction(async () =>
+        {
+            var @params = new TournamentCreateParams
+            {
+                Name = Content.Name!,
+                StartDate = Content.StartDate!.Value,
+                EndDate = Content.EndDate!.Value,
+                LocationId = Content.LocationId!.Value,
+                PrizePool = Content.PrizePool!.Value
+            };
+            if (Content.Id is null)
+            {
+                return await tournamentsClient.CreateTournamentAsync(@params);
+            }
+
+            await tournamentsClient.UpdateTournamentAsync(Content.Id.Value, @params);
+
+            return Content.Id.Value;
+        });
+        if (response.IsSuccessful)
+        {
+            await Dialog.CloseAsync(response.Result);
+        }
+        toastService.ShowErrors(response.Errors);
+        saving = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+
+    private void LocationChanged(string? value)
+    {
+        Content.LocationId = int.TryParse(value, out var locationId) ? locationId : null;
+    }
+}

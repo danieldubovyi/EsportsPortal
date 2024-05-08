@@ -1,0 +1,93 @@
+﻿@implements IDialogContentComponent<int>
+@inject NewsClient newsClient
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<FluentDialogHeader ShowDismiss="false">
+    <FluentStack VerticalAlignment="VerticalAlignment.Center">
+        <FluentIcon Value="@(new Icons.Regular.Size24.Tag())" />
+        <FluentLabel Typo="Typography.PaneHeader">
+            News tags
+        </FluentLabel>
+    </FluentStack>
+</FluentDialogHeader>
+
+<FluentDialogBody>
+    <FluentAutocomplete
+        AutoComplete="off"
+        Label="Select tags"
+        Multiple="true"
+        TOption="string"
+        OnOptionsSearch="@OnSearchAsync"
+        @bind-SelectedOptions="@selectedTags"
+        Width="100%"
+    />
+</FluentDialogBody>
+
+<FluentDialogFooter>
+    <FluentButton
+        Appearance="Appearance.Neutral"
+        IconStart="@(new Icons.Regular.Size20.ArrowUndo())"
+        OnClick="@CancelAsync">
+        Cancel
+    </FluentButton>
+    <FluentButton
+        Appearance="Appearance.Accent"
+        IconStart="@(new Icons.Regular.Size20.Checkmark())"
+        Loading="@saving"
+        OnClick="@SaveAsync">
+        Save
+    </FluentButton>
+</FluentDialogFooter>
+
+@code {
+    [CascadingParameter]
+    public FluentDialog Dialog { get; set; } = default!;
+    [Parameter]
+    public int Content { get; set; } = default!;
+    private int PostId => Content;
+    private bool saving = false;
+    private IReadOnlyCollection<string> allTags = default!;
+    private IEnumerable<string> selectedTags = default!;
+
+    protected async override Task OnInitializedAsync()
+    {
+        allTags = await newsClient.GetAllNewsPostTagsAsync();
+        selectedTags = await newsClient.GetNewsPostTagsAsync(PostId);
+    }
+
+    private async Task SaveAsync()
+    {
+        saving = true;
+        var response = await dataSource.RunAction(async () =>
+        {
+            await newsClient.UpdateNewsPostTagsAsync(PostId, selectedTags);
+        });
+        if (response.IsSuccessful)
+        {
+            await Dialog.CloseAsync();
+        }
+        toastService.ShowErrors(response.Errors);
+        saving = false;
+    }
+
+    private async Task CancelAsync()
+    {
+        await Dialog.CancelAsync();
+    }
+
+    private void OnSearchAsync(OptionsSearchEventArgs<string> e)
+    {
+        var tags = allTags
+            .Union(selectedTags)
+            .Where(t => t.Contains(e.Text, StringComparison.OrdinalIgnoreCase))
+            .Order()
+            .ToList();
+        if(!string.IsNullOrWhiteSpace(e.Text) && !tags.Contains(e.Text))
+        {
+            tags.Insert(0, e.Text);
+        }
+
+        e.Items = tags;
+    }
+}

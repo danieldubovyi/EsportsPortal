@@ -1,0 +1,218 @@
+﻿@page "/teams/{teamId:int}"
+@inject TeamsClient teamsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject NavigationManager navManager
+@inject IDialogService dialogService
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<PageTitle>@team?.Name</PageTitle>
+@if (team == null || players == null || coaches == null)
+{
+    <Loading />
+}
+else
+{
+<FluentCard Style="background-color: var(--neutral-layer-card-container);">
+    <div class="team-info">
+        <AuthorizeView Roles="@UserRole.Admin">
+        <div class="team-actions">
+            <FluentButton Id="menuButton" Appearance="Appearance.Outline" OnClick="@(() => menuOpen = !menuOpen)">
+                <FluentIcon Value="@(new Icons.Regular.Size24.Navigation())" />
+            </FluentButton>
+            <FluentMenu Anchor="menuButton" @bind-Open="menuOpen">
+                <FluentMenuItem OnClick="Edit">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Slot="start" />
+                    Edit
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="UploadLogo">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.ImageEdit())" Slot="start" />
+                    Upload logo
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="ManagePlayers">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Person())" Slot="start" />
+                    Manage players
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="ManageCoaches">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Guest())" Slot="start" />
+                    Manage coaches
+                </FluentMenuItem>
+                <FluentMenuItem OnClick="Delete">
+                    <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" />
+                    Delete
+                </FluentMenuItem>
+            </FluentMenu>
+        </div>
+        </AuthorizeView>
+        <div class="team-logo">
+            <img class="team-logo-image" src="@fileUrlProvider.GetFileUrl(team.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @team.Name" />
+            <AuthorizeView Roles="@UserRole.Admin">
+                <FluentInputFile @ref="logoUploadComponent"
+                    DragDropZoneVisible="false"
+                    Mode="InputFileMode.Stream"
+                    Multiple="false"
+                    AnchorId="uploadLogoMenu"
+                    MaximumFileSize="@(10 * 1024 * 1024)"
+                    Accept="image/*"
+                    OnFileUploaded="@OnLogoUploadCompleted" />
+            </AuthorizeView>
+        </div>
+        <div style="float:left">
+            <div class="team-name">@team.Name</div>
+            <div class="team-field">
+                <div class="team-field-label">Ranking</div>
+                <div class="team-field-value">#@team.Ranking</div>
+            </div>
+            <div class="team-field">
+                <div class="team-field-label">Region</div>
+                <div class="team-field-value">
+                    <LabelWithIcon
+                        Label="@team.RegionName"
+                        ImageUrl="@fileUrlProvider.GetFileUrl(team.RegionFlagFileName)"
+                        Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;"
+                        ImageSize="20px"
+                    />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="caption">Players</div>
+    <FluentStack>
+    @foreach(var player in players.OrderBy(p => p.Nickname))
+    {
+        <TeamMemberCard TeamMember="player" MemberUrl="@($"players/{player.Id}")" />
+    }
+    </FluentStack>
+
+    <div class="caption" style="padding-top:20px">Coaches</div>
+    <FluentStack>
+    @foreach(var coach in coaches.OrderBy(p => p.Nickname))
+    {
+        <TeamMemberCard TeamMember="coach" MemberUrl="@($"coaches/{coach.Id}")" />
+    }
+    </FluentStack>
+
+</FluentCard>
+}
+@code {
+
+    [Parameter]
+    public int TeamId { get; set; }
+
+    private TeamDetails? team;
+    private IReadOnlyCollection<TeamPlayer>? players;
+    private IReadOnlyCollection<TeamCoach>? coaches;
+    private bool menuOpen;
+    private FluentInputFile logoUploadComponent = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var teamTask = teamsClient.GetTeamDetailsAsync(TeamId);
+        var playersTask = teamsClient.GetTeamPlayersAsync(TeamId);
+        var coachesTask = teamsClient.GetTeamCoachesAsync(TeamId);
+
+        await Task.WhenAll(teamTask, playersTask, coachesTask);
+
+        team = teamTask.Result;
+        players = playersTask.Result;
+        coaches = coachesTask.Result;
+    }
+
+    private async Task Edit()
+    {
+        if (team == null)
+        {
+            return;
+        }
+        var parameters = new DialogParameters { Title = "Team info", PrimaryAction = "Save", PreventDismissOnOverlayClick = true };
+        var teamDetailsModel = new TeamDetailsModel
+        {
+            Id = team.Id,
+            Name = team.Name,
+            RegionId = team.RegionId,
+            Ranking = team.Ranking
+        };
+        var dialog = await dialogService.ShowDialogAsync<TeamDetailsDialog>(teamDetailsModel, parameters);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            team = await teamsClient.GetTeamDetailsAsync(TeamId);
+            toastService.ShowSuccess("Team was saved successfully");
+        }
+    }
+
+    private async Task UploadLogo()
+    {
+        await logoUploadComponent.ShowFilesDialogAsync();
+    }
+
+    private async Task OnLogoUploadCompleted(FluentInputFileEventArgs file)
+    {
+        var response = await dataSource.RunAction(async () =>
+        {
+            var fileParameter = new FileParameter(file.Stream!, file.Name, file.ContentType);
+            await teamsClient.UpdateTeamLogoAsync(TeamId, fileParameter);
+        });
+        if (response.IsSuccessful)
+        {
+            team = await teamsClient.GetTeamDetailsAsync(TeamId);
+            toastService.ShowSuccess("Team logo was updated successfully");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task Delete()
+    {
+        var dialog = await dialogService.ShowConfirmationAsync($"You want to delete '{team?.Name}' team. Are you sure?");
+        var result = await dialog.Result;
+        if(result.Cancelled)
+        {
+            return;
+        }
+        var response = await dataSource.RunAction(async () =>
+        {
+            await teamsClient.DeleteTeamAsync(TeamId);
+        });
+        if (response.IsSuccessful)
+        {
+            await (await dialogService.ShowSuccessAsync($"'{team?.Name}' team was deleted successfully")).Result;
+            navManager.NavigateTo($"/teams");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task ManagePlayers()
+    {
+        if (team == null)
+        {
+            return;
+        }
+        var dialog = await dialogService.ShowDialogAsync<TeamPlayersDialog>(team.Id, new() { Height = "400px", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            players = await teamsClient.GetTeamPlayersAsync(TeamId);
+            toastService.ShowSuccess("Team players was saved successfully");
+        }
+    }
+
+    private async Task ManageCoaches()
+    {
+        if (team == null)
+        {
+            return;
+        }
+        var dialog = await dialogService.ShowDialogAsync<TeamCoachesDialog>(team.Id, new() { Height = "400px", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            coaches = await teamsClient.GetTeamCoachesAsync(TeamId);
+            toastService.ShowSuccess("Team coaches was saved successfully");
+        }
+    }
+}

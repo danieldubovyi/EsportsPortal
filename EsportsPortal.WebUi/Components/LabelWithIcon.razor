@@ -1,0 +1,47 @@
+﻿@if(IconPosition == HorizontalPosition.Left)
+{
+    <FluentLabel Style="@Style">
+        <FluentIcon Style="@IconStyle" Value="@(Icon.FromImageUrl(ImageUrl))" />
+        @Label
+    </FluentLabel>
+}
+else
+{
+    <FluentLabel Style="@Style">
+        @Label
+        <FluentIcon Style="@IconStyle" Value="@(Icon.FromImageUrl(ImageUrl))" />
+    </FluentLabel>
+}
+
+
+@code {
+    [Parameter]
+    public string Label { get; set; } = default!;
+
+    [Parameter]
+    public string ImageUrl { get; set; } = default!;
+
+    [Parameter]
+    public string Style { get; set; } = default!;
+
+    [Parameter]
+    public string? ImageSize { get; set; }
+
+    [Parameter]
+    public HorizontalPosition IconPosition { get; set; }
+
+    private string IconStyle
+    {
+        get
+        {
+            if (string.IsNullOrEmpty(ImageSize))
+            {
+                return string.Empty;
+            }
+
+            return $"width:{ImageSize};";
+        }
+    }
+}
+
+

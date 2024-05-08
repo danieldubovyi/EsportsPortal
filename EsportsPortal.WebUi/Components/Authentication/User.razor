@@ -1,0 +1,79 @@
+﻿@using System.Security.Claims
+@using EsportsPortal.WebUi.Authentication
+
+@inject IAuthenticationService authService
+@inject NavigationManager navManager
+
+<div class="user-menubutton-container">
+    <FluentButton id="user-menubutton" aria-haspopup="true" aria-expanded="@visible" @onclick=ToggleMenu @onkeydown=OnKeyDown>
+        <AuthorizeView>
+            <Authorized>
+                <FluentTooltip Anchor="user-menubutton" Position=TooltipPosition.Bottom Delay=100>
+                    @(context.User.Identity?.Name ?? "Unknown")
+                </FluentTooltip>
+                <FluentIcon Value="@(new Icons.Regular.Size24.PersonAvailable())" Slot="start" />
+            </Authorized>
+            <NotAuthorized>
+                <FluentTooltip Anchor="user-menubutton" Position=TooltipPosition.Bottom Delay=100>
+                    Guest
+                </FluentTooltip>
+                <FluentIcon Value="@(new Icons.Regular.Size24.Person())" Color="Color.Disabled" Slot="start"/>
+            </NotAuthorized>
+        </AuthorizeView>
+        <FluentIcon Value="@(new Icons.Regular.Size24.ChevronDown())" Slot="start" Style="margin-inline-end:-11px" />
+    </FluentButton>
+    <FluentMenu Anchor="user-menubutton" @bind-Open=@visible>
+        <AuthorizeView>
+            <Authorized>
+                <FluentMenuItem OnClick=Logout>
+                    <span slot="start"><FluentIcon Value="@(new Icons.Regular.Size24.PersonArrowRight())" Slot="start" /></span>
+                    Logout
+                </FluentMenuItem>
+            </Authorized>
+            <NotAuthorized>
+                <FluentMenuItem OnClick=Login>
+                    <span slot="start"><FluentIcon Value="@(new Icons.Regular.Size24.PersonArrowLeft())" Slot="start" /></span>
+                    Login
+                </FluentMenuItem>
+                <FluentMenuItem OnClick=Register>
+                    <span slot="start"><FluentIcon Value="@(new Icons.Regular.Size24.PersonAdd())" Slot="start" /></span>
+                    Register
+                </FluentMenuItem>
+            </NotAuthorized>
+        </AuthorizeView>
+    </FluentMenu>
+</div>
+
+@code {
+
+    private bool visible;
+
+    private void ToggleMenu()
+    {
+        visible = !visible;
+    }
+
+    private void OnKeyDown(KeyboardEventArgs args)
+    {
+        if (args is not null && args.Key == "Escape")
+        {
+            visible = false;
+        }
+    }
+
+    private void Register()
+    {
+        navManager.NavigateTo($"/auth/register?returnUrl={navManager.ToBaseRelativePath(navManager.Uri)}");
+    }
+
+    private void Login()
+    {
+        navManager.NavigateTo($"/auth/login?returnUrl={navManager.ToBaseRelativePath(navManager.Uri)}");
+    }
+
+    private async Task Logout()
+    {
+        await authService.LogoutAsync();
+        navManager.NavigateTo(navManager.ToBaseRelativePath(navManager.Uri), true);
+    }
+}

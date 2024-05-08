@@ -1,0 +1,63 @@
+﻿@page "/tournaments"
+
+@inject TournamentsClient tournamentsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IDialogService dialogService
+@inject NavigationManager navManager
+
+<PageTitle>Tournaments</PageTitle>
+
+@if (tournaments == null)
+{
+    <Loading />
+}
+else
+{
+    <div style="width: 100%">
+    <FluentLabel Style="float:left" Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">Tournaments</FluentLabel>
+    <AuthorizeView Roles="@UserRole.Admin">
+        <FluentButton Style="float:right; margin-top: 9px;"
+            Appearance="Appearance.Outline"
+            IconStart="@(new Icons.Regular.Size24.Trophy())"
+            OnClick=CreateTournament>
+            <span style="font-weight:bold;color:var(--accent-fill-rest)">New tournament</span>
+        </FluentButton>
+    </AuthorizeView>
+    </div>
+
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach(var tournament in tournaments.OrderByDescending(t => t.StartDate).ThenBy(t => t.Name))
+        {
+            <FluentAnchor Href="@($"tournaments/{tournament.Id}")" Appearance="Appearance.Hypertext" Style="width:100%">
+                <FluentCard Style="padding: 10px">
+                    <div class="tournament-period">@(tournament.GetDateRangeString())</div>
+                    <div class="tournament-logo"><img class="tournament-logo-image" src="@fileUrlProvider.GetFileUrl(tournament.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(tournament.Name)" /></div>
+                    <div class="tournament-name">@(tournament.Name)</div>
+                    <NameWithIcon
+                        Name="@($"{tournament.City}, {tournament.CountryName}")"
+                        ImageUrl="@fileUrlProvider.GetFileUrl(tournament.CountryFlagFileName)"
+                        HorizontalPosition="HorizontalPosition.Right" />
+                </FluentCard>
+            </FluentAnchor>
+        }
+    </FluentStack>
+}
+
+@code {
+    private IReadOnlyCollection<TournamentListItem>? tournaments;
+
+    protected override async Task OnInitializedAsync()
+    {
+        tournaments = await tournamentsClient.GetTournamentsAsync();
+    }
+
+    private async Task CreateTournament()
+    {
+        var dialog = await dialogService.ShowDialogAsync<TournamentDetailsDialog>(new TournamentDetailsModel(), new DialogParameters { Title = "New tournament", PrimaryAction = "Create", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            navManager.NavigateTo($"tournaments/{result.Data}");
+        }
+    }
+}

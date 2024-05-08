@@ -1,0 +1,176 @@
+﻿@page "/players/{playerId:int}"
+
+@inject PlayersClient playersClient
+@inject IFileUrlProvider fileUrlProvider
+@inject NavigationManager navManager
+@inject IDialogService dialogService
+@inject IToastService toastService
+@inject DataSource dataSource
+
+<PageTitle>@player?.Nickname</PageTitle>
+@if (player == null)
+{
+    <Loading />
+}
+else
+{
+    <FluentCard Style="background-color: var(--neutral-layer-card-container);">
+        <div class="player-info">
+            <AuthorizeView Roles="@UserRole.Admin">
+                <div class="player-actions">
+                    <FluentButton Id="menuButton" Appearance="Appearance.Outline" OnClick="@(() => menuOpen = !menuOpen)">
+                        <FluentIcon Value="@(new Icons.Regular.Size24.Navigation())" />
+                    </FluentButton>
+                    <FluentMenu Anchor="menuButton" @bind-Open="menuOpen">
+                        <FluentMenuItem OnClick="Edit">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.Edit())" Slot="start" />
+                            Edit
+                        </FluentMenuItem>
+                        <FluentMenuItem OnClick="UploadPhoto">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.ImageEdit())" Slot="start" />
+                            Upload photo
+                        </FluentMenuItem>
+                        <FluentMenuItem OnClick="Delete">
+                            <FluentIcon Value="@(new Icons.Regular.Size20.Delete())" Slot="start" />
+                            Delete
+                        </FluentMenuItem>
+                    </FluentMenu>
+                </div>
+            </AuthorizeView>
+            <div class="player-photo">
+                <img class="player-photo-image" src="@fileUrlProvider.GetFileUrl(player.PhotoFileName ?? DefaultImages.NoPhoto)" alt="Logo of @player.Nickname" />
+                <AuthorizeView Roles="@UserRole.Admin">
+                    <FluentInputFile @ref="photoUploadComponent"
+                                     DragDropZoneVisible="false"
+                                     Mode="InputFileMode.Stream"
+                                     Multiple="false"
+                                     MaximumFileSize="@(10 * 1024 * 1024)"
+                                     Accept="image/*"
+                                     OnFileUploaded="@OnPhotoUploadCompleted" />
+                </AuthorizeView>
+            </div>
+            <div style="float:left">
+                <div class="player-name">@player.FirstName '<span style="font-weight:bold">@player.Nickname</span>' @player.LastName</div>
+                <div class="player-field">
+                    <div class="player-field-label">Rating</div>
+                    <div class="player-field-value">#@(player.Rating?.ToString() ?? "?")</div>
+                </div>
+                <div class="player-field">
+                    <div class="player-field-label">Current team</div>
+                    <div class="player-field-value">
+                        <TeamAnchor 
+                            Id="@player.TeamId"
+                            Name ="@(player.TeamName ?? "No team")"
+                            ImageUrl="@(fileUrlProvider.GetFileUrl(player.TeamLogoFileName ?? DefaultImages.NoLogo))"
+                        />
+                    </div>
+                </div>
+                <div class="player-field">
+                    <div class="player-field-label">Born</div>
+                    <div class="player-field-value">@(player.DateOfBirth.ToStringWithAge())</div>
+                </div>
+                <div class="player-field">
+                    <div class="player-field-label">Nationality</div>
+                    <div class="player-field-value">
+                        <LabelWithIcon
+                            Label="@player.CountryName"
+                            ImageUrl="@fileUrlProvider.GetFileUrl(player.CountryFlagFileName)"
+                            Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;"
+                            ImageSize="20px"
+                        />
+                    </div>
+                </div>
+                <div class="player-field">
+                    <div class="player-field-label">Role</div>
+                    <div class="player-field-value">@player.RoleDescription</div>
+                </div>
+            </div>
+        </div>
+    </FluentCard>
+}
+@code {
+
+    [Parameter]
+    public int PlayerId { get; set; }
+
+    private PlayerDetails? player;
+    private bool menuOpen;
+    private FluentInputFile photoUploadComponent = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        player = await playersClient.GetPlayerDetailsAsync(PlayerId);
+    }
+
+    private async Task Edit()
+    {
+        if (player == null)
+        {
+            return;
+        }
+        var parameters = new DialogParameters { Title = "Player info", PrimaryAction = "Save", PreventDismissOnOverlayClick = true };
+        var playerDetailsModel = new PlayerDetailsModel
+            {
+                Id = player.Id,
+                FirstName = player.FirstName,
+                LastName = player.LastName,
+                Nickname = player.Nickname,
+                CountryId = player.CountryId,
+                Rating = player.Rating,
+                DateOfBirth = player.DateOfBirth.Date,
+                Role = player.Role,
+                TeamId = player.TeamId
+            };
+        var dialog = await dialogService.ShowDialogAsync<PlayerDetailsDialog>(playerDetailsModel, parameters);
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            player = await playersClient.GetPlayerDetailsAsync(PlayerId);
+            toastService.ShowSuccess("Player was saved successfully");
+        }
+    }
+
+    private async Task UploadPhoto()
+    {
+        await photoUploadComponent.ShowFilesDialogAsync();
+    }
+
+    private async Task OnPhotoUploadCompleted(FluentInputFileEventArgs file)
+    {
+        var response = await dataSource.RunAction(async () =>
+        {
+            var fileParameter = new FileParameter(file.Stream!, file.Name, file.ContentType);
+            await playersClient.UpdatePlayerPhotoAsync(PlayerId, fileParameter);
+        });
+        if (response.IsSuccessful)
+        {
+            player = await playersClient.GetPlayerDetailsAsync(PlayerId);
+            toastService.ShowSuccess("Player photo was updated successfully");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+
+    private async Task Delete()
+    {
+        var dialog = await dialogService.ShowConfirmationAsync($"You want to delete '{player?.Nickname}' player. Are you sure?");
+        var result = await dialog.Result;
+        if (result.Cancelled)
+        {
+            return;
+        }
+        var response = await dataSource.RunAction(async () =>
+        {
+            await playersClient.DeletePlayerAsync(PlayerId);
+        });
+        if (response.IsSuccessful)
+        {
+            await (await dialogService.ShowSuccessAsync($"'{player?.Nickname}' player was deleted successfully")).Result;
+            navManager.NavigateTo($"/players");
+            return;
+        }
+
+        toastService.ShowErrors(response.Errors);
+    }
+}

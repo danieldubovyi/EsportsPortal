@@ -1,0 +1,35 @@
+﻿@page "/schedule"
+
+@inject MatchesClient matchesClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IDialogService dialogService
+@inject NavigationManager navManager
+
+<PageTitle>Schedule</PageTitle>
+
+@if (matches == null)
+{
+    <Loading />
+}
+else
+{
+    <div style="width: 100%">
+        <FluentLabel Style="float:left" Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">Schedule</FluentLabel>
+    </div>
+
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach (var match in matches.OrderBy(r => r.DateTime))
+        {
+            <MatchCard Match="@match" />
+        }
+    </FluentStack>
+}
+
+@code {
+    private IReadOnlyCollection<MatchListItem>? matches;
+
+    protected override async Task OnInitializedAsync()
+    {
+        matches = await matchesClient.GetMatchesAsync(isFinished: false);
+    }
+}

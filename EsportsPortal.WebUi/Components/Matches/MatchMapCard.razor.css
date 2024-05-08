@@ -1,0 +1,77 @@
+﻿.map-team-logo {
+    width: 85px;
+    text-align: center;
+    padding-top: 3px;
+}
+
+.map-team-logo-image {
+    height: 2rem;
+    margin: auto;
+}
+
+.map-name {
+    width: 130px;
+    line-height: 2rem;
+    text-align: center;
+    float: right;
+    color: var(--neutral-stroke-strong-rest);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-1-font-size);
+    padding-top: 3px;
+}
+
+.map-team-name {
+}
+
+.map-team {
+    float: left;
+    line-height: 2rem;
+    color: var(--accent-fill-rest);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    padding-top: 3px;
+    width: 350px
+}
+
+.map-team1 {
+    float: right;
+}
+
+.map-team2 {
+    float: left;
+}
+
+.map-team-points {
+    font-size: var(--type-ramp-plus-3-font-size);
+    width: 25px;
+    text-align: center;
+}
+
+.map-team-splitter {
+    float: left;
+    line-height: 2rem;
+    color: var(--accent-fill-rest);
+    font-weight: bold;
+    font-size: var(--type-ramp-plus-2-font-size);
+    padding: 3px 10px;
+}
+
+.map-team-win {
+    color: var(--presence-available);
+}
+
+.map-team-loose {
+    color: var(--presence-dnd);
+}
+
+.map-logo {
+    width: 85px;
+    float: left;
+    text-align: center;
+    padding-top: 3px;
+}
+
+.map-logo-image {
+    height: 2rem;
+    margin: auto;
+}

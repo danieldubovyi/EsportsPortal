@@ -1,0 +1,29 @@
+﻿@if (Id.HasValue)
+{
+    <FluentAnchor Href="@($"teams/{Id}")" Appearance="Appearance.Hypertext">
+        <LabelWithIcon
+            Label="@Name"
+            ImageUrl="@ImageUrl"
+            Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;"
+        />
+    </FluentAnchor>
+}
+else
+{
+    <LabelWithIcon
+        Label="@Name"
+        ImageUrl="@ImageUrl"
+        Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;"
+    />
+}
+
+@code {
+    [Parameter]
+    public int? Id { get; set; }
+
+    [Parameter]
+    public string Name { get; set; } = default!;
+
+    [Parameter]
+    public string ImageUrl { get; set; } = default!;
+}

@@ -1,0 +1,67 @@
+﻿@page "/coaches"
+
+@inject CoachesClient coachesClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IDialogService dialogService
+@inject NavigationManager navManager
+
+<PageTitle>Coaches</PageTitle>
+
+@if (coaches == null)
+{
+    <Loading />
+}
+else
+{
+    <div style="width: 100%">
+    <FluentLabel Style="float:left" Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">Coaches</FluentLabel>
+    <AuthorizeView Roles="@UserRole.Admin">
+        <FluentButton Style="float:right; margin-top: 9px;"
+            Appearance="Appearance.Outline"
+            IconStart="@(new Icons.Regular.Size24.GuestAdd())"
+            OnClick=CreateCoach>
+            <span style="font-weight:bold;color:var(--accent-fill-rest)">New coach</span>
+        </FluentButton>
+    </AuthorizeView>
+    </div>
+
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach(var coach in coaches.OrderBy(c => c.Nickname))
+        {
+            <FluentAnchor Href="@($"coaches/{coach.Id}")" Appearance="Appearance.Hypertext" Style="width:100%">
+                <FluentCard Style="padding: 10px">
+                    <div class="coach-photo">
+                        <img class="coach-photo-image" src="@fileUrlProvider.GetFileUrl(coach.PhotoFileName ?? DefaultImages.NoPhoto)" alt="Photo of @(coach.Nickname)" />
+                    </div>
+                    <div class="coach-name">@coach.FirstName '<span style="font-weight:bold">@coach.Nickname</span>' @coach.LastName</div>
+                    <NameWithIcon
+                        Name="@(coach.TeamName ?? "No team")"
+                        ImageUrl="@fileUrlProvider.GetFileUrl(coach.TeamLogoFileName ?? DefaultImages.NoLogo)"
+                        HorizontalPosition="HorizontalPosition.Right"
+                        ImageStyle="height:20px"
+                        style="float:right"
+                    />
+                </FluentCard>
+            </FluentAnchor>
+        }
+    </FluentStack>
+}
+
+@code {
+    private IQueryable<CoachListItem>? coaches;
+
+    protected override async Task OnInitializedAsync()
+    {
+        coaches = (await coachesClient.GetCoachesAsync(notInTeam: null)).AsQueryable();
+    }
+
+    private async Task CreateCoach()
+    {
+        var dialog = await dialogService.ShowDialogAsync<CoachDetailsDialog>(new CoachDetailsModel(), new DialogParameters { Title = "New coach", PrimaryAction = "Create", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            navManager.NavigateTo($"coaches/{result.Data}");
+        }
+    }
+}

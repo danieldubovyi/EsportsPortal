@@ -1,0 +1,63 @@
+﻿@page "/teams"
+
+@inject TeamsClient teamsClient
+@inject IFileUrlProvider fileUrlProvider
+@inject IDialogService dialogService
+@inject NavigationManager navManager
+
+<PageTitle>Teams</PageTitle>
+
+@if (teams == null)
+{
+    <Loading />
+}
+else
+{
+    <div style="width: 100%">
+    <FluentLabel Style="float:left" Typo="Typography.PageTitle" Color="Color.Accent" MarginBlock="default">Top teams</FluentLabel>
+    <AuthorizeView Roles="@UserRole.Admin">
+        <FluentButton Style="float:right; margin-top: 9px;"
+            Appearance="Appearance.Outline"
+            IconStart="@(new Icons.Regular.Size24.PeopleTeamAdd())"
+            OnClick=CreateTeam>
+            <span style="font-weight:bold;color:var(--accent-fill-rest)">New team</span>
+        </FluentButton>
+    </AuthorizeView>
+    </div>
+
+    <FluentStack Orientation="Orientation.Vertical">
+        @foreach(var team in teams.OrderBy(t => t.Ranking).ThenBy(t => t.Name))
+        {
+            <FluentAnchor Href="@($"teams/{team.Id}")" Appearance="Appearance.Hypertext" Style="width:100%">
+                <FluentCard Style="padding: 10px">
+                    <div class="team-ranking">#@(team.Ranking)</div>
+                    <div class="team-logo"><img class="team-logo-image" src="@fileUrlProvider.GetFileUrl(team.LogoFileName ?? DefaultImages.NoLogo)" alt="Logo of @(team.Name)" /></div>
+                    <div class="team-name">@(team.Name)</div>
+                    <NameWithIcon
+                        Name="@team.RegionName"
+                        ImageUrl="@fileUrlProvider.GetFileUrl(team.RegionFlagFileName)"
+                        HorizontalPosition="HorizontalPosition.Right" />
+                </FluentCard>
+            </FluentAnchor>
+        }
+    </FluentStack>
+}
+
+@code {
+    private IReadOnlyCollection<TeamListItem>? teams;
+
+    protected override async Task OnInitializedAsync()
+    {
+        teams = await teamsClient.GetTeamsAsync();
+    }
+
+    private async Task CreateTeam()
+    {
+        var dialog = await dialogService.ShowDialogAsync<TeamDetailsDialog>(new TeamDetailsModel(), new DialogParameters { Title = "New team", PrimaryAction = "Create", PreventDismissOnOverlayClick = true });
+        var result = await dialog.Result;
+        if (!result.Cancelled)
+        {
+            navManager.NavigateTo($"teams/{result.Data}");
+        }
+    }
+}

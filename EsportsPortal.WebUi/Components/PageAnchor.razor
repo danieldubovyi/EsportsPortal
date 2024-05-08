@@ -1,0 +1,17 @@
+﻿<FluentAnchor Href="@(Href)" Appearance="Appearance.Hypertext" Style="padding-left: 40px;">
+    <FluentLabel Style="color: var(--accent-fill-rest);font-size: var(--type-ramp-plus-2-font-size);font-weight: bold;">
+        <span style="vertical-align: top;">@Label</span>
+        <FluentIcon Value="@(Icon ?? new Icons.Regular.Size24.ArrowCircleRight())" />
+    </FluentLabel>
+</FluentAnchor>
+
+@code {
+    [Parameter]
+    public string Href { get; set; } = default!;
+
+    [Parameter]
+    public string Label { get; set; } = default!;
+
+    [Parameter]
+    public Icon? Icon { get; set; }
+}
